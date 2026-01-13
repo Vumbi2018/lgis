@@ -1,9 +1,9 @@
-import { FileText, Shield, Zap, Wrench, Car, Factory, Coffee, Tv, Scissors, Wine, Hotel, Anchor, Utensils, ShoppingBag, Store, Users, Truck } from "lucide-react";
+import { FileText, Shield, Zap, Wrench, Car, Factory, Coffee, Tv, Scissors, Wine, Hotel, Anchor, Utensils, ShoppingBag, Store, Users, Truck, Music, Pill, Briefcase } from "lucide-react";
 
 export type ChecklistItem = {
   id: string;
   label: string;
-  responsible: "Applicant" | "NCDC" | "IPA" | "Landlord" | "Department of Health" | "Labour Department" | "Justice of Peace" | "Traffic Police" | "IRC/Customs" | "Maritime Authority";
+  responsible: "Applicant" | "NCDC" | "IPA" | "Landlord" | "Department of Health" | "Labour Department" | "Justice of Peace" | "Traffic Police" | "IRC/Customs" | "Maritime Authority" | "NDoH-Pharmacy Board";
   required: boolean;
   note?: string;
 };
@@ -11,7 +11,7 @@ export type ChecklistItem = {
 export type LicenseType = {
   id: string;
   name: string;
-  category: "Trading" | "Liquor" | "Industrial" | "Health" | "Transport";
+  category: "Trading" | "Liquor" | "Industrial" | "Health" | "Transport" | "General";
   icon: any;
   formType: "Form 1" | "Form 3" | "Form 4" | "Form 5" | "Form 6" | "Form 7" | "Form 12";
   checklist: ChecklistItem[];
@@ -37,6 +37,16 @@ const LIQUOR_REQUIREMENTS: ChecklistItem[] = [
 ];
 
 export const LICENSE_TYPES: LicenseType[] = [
+  // General
+  {
+    id: "general_trading",
+    name: "General Trading License",
+    category: "General",
+    icon: Briefcase,
+    formType: "Form 1",
+    checklist: COMMON_REQUIREMENTS
+  },
+  
   // Trading Licenses
   {
     id: "second_hand_clothing",
@@ -65,6 +75,14 @@ export const LICENSE_TYPES: LicenseType[] = [
     name: "Barber Shop",
     category: "Trading",
     icon: Scissors,
+    formType: "Form 1",
+    checklist: COMMON_REQUIREMENTS
+  },
+  {
+    id: "entertainment_place",
+    name: "Place of Entertainment",
+    category: "Trading",
+    icon: Music,
     formType: "Form 1",
     checklist: COMMON_REQUIREMENTS
   },
@@ -128,8 +146,20 @@ export const LICENSE_TYPES: LicenseType[] = [
       { id: "haccp", label: "Food Safety Management (HACCP)", responsible: "Applicant", required: true },
     ]
   },
+  {
+    id: "pharmacy",
+    name: "Pharmacy",
+    category: "Health",
+    icon: Pill,
+    formType: "Form 1",
+    checklist: [
+      ...COMMON_REQUIREMENTS,
+      { id: "pharma_license", label: "Pharmaceutical License", responsible: "NDoH-Pharmacy Board", required: true },
+    ]
+  },
 
   // Liquor Licenses
+
   {
     id: "tavern",
     name: "Tavern License",
