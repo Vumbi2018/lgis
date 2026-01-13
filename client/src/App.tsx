@@ -8,6 +8,8 @@ import LoginPage from "@/pages/auth/login";
 import DashboardPage from "@/pages/dashboard";
 import RegistryPage from "@/pages/registry/index";
 import ServicesPage from "@/pages/services/index";
+import LicensingPage from "@/pages/licensing/index";
+import ApplicationWizard from "@/pages/licensing/apply";
 
 function Router() {
   return (
@@ -16,6 +18,8 @@ function Router() {
       <Route path="/dashboard" component={DashboardPage} />
       <Route path="/registry" component={RegistryPage} />
       <Route path="/services" component={ServicesPage} />
+      <Route path="/licensing" component={LicensingPage} />
+      <Route path="/licensing/apply/:id" component={ApplicationWizard} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>
