@@ -1,136 +1,136 @@
-// Reference: blueprint:javascript_database integration
-import { 
-  users, citizens, businesses, properties, licenseApplications, licenses,
-  inspections, enforcementCases, complaints, invoices, transactions, auditLogs,
-  organizations,
-  type User, type InsertUser, type Organization, type InsertOrganization,
-  type Citizen, type InsertCitizen, type Business, type InsertBusiness,
-  type Property, type InsertProperty, type LicenseApplication, type InsertLicenseApplication,
-  type License, type InsertLicense, type Inspection, type InsertInspection,
-  type EnforcementCase, type InsertEnforcementCase, type Complaint, type InsertComplaint,
-  type Invoice, type InsertInvoice, type Transaction, type InsertTransaction,
-  type AuditLog, type InsertAuditLog
-} from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, or, like, sql } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
+import {
+  councils, councilUnits, users, roles, permissions, rolePermissions, userRoles,
+  auditLogs, citizens, businesses, accounts, services, feeSchedules,
+  serviceRequests, workflowDefinitions, workflowSteps, workflowInstances,
+  inspections, inspectionFindings, inspectionEvidence,
+  invoices, invoiceLines, payments, paymentAllocations,
+  licences, licenceRenewals, properties, rateAssessments,
+  markets, stalls, complaints, complaintUpdates, enforcementCases, notices,
+  type Council, type InsertCouncil,
+  type Citizen, type InsertCitizen,
+  type Business, type InsertBusiness,
+  type Property,
+  type ServiceRequest,
+  type Inspection,
+  type Invoice,
+  type Payment,
+  type Licence,
+  type Complaint,
+  type EnforcementCase,
+  type AuditLog,
+  type Service,
+  type Market,
+  type Stall,
+  type User
+} from "@shared/schema";
 
 export interface IStorage {
-  // User operations
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  // Councils
+  getCouncils(): Promise<Council[]>;
+  getCouncilById(councilId: string): Promise<Council | undefined>;
+  createCouncil(council: InsertCouncil): Promise<Council>;
 
-  // Organization operations
-  listOrganizations(): Promise<Organization[]>;
-  getOrganization(id: string): Promise<Organization | undefined>;
-  createOrganization(org: InsertOrganization): Promise<Organization>;
-
-  // Citizen operations
-  listCitizens(organizationId: string): Promise<Citizen[]>;
-  getCitizen(id: string): Promise<Citizen | undefined>;
+  // Citizens
+  getCitizens(councilId?: string): Promise<Citizen[]>;
+  getCitizenById(citizenId: string): Promise<Citizen | undefined>;
   createCitizen(citizen: InsertCitizen): Promise<Citizen>;
-  updateCitizen(id: string, citizen: Partial<InsertCitizen>): Promise<Citizen>;
 
-  // Business operations
-  listBusinesses(organizationId: string): Promise<Business[]>;
-  getBusiness(id: string): Promise<Business | undefined>;
+  // Businesses
+  getBusinesses(councilId?: string): Promise<Business[]>;
+  getBusinessById(businessId: string): Promise<Business | undefined>;
   createBusiness(business: InsertBusiness): Promise<Business>;
-  updateBusiness(id: string, business: Partial<InsertBusiness>): Promise<Business>;
 
-  // Property operations
-  listProperties(organizationId: string): Promise<Property[]>;
-  getProperty(id: string): Promise<Property | undefined>;
-  createProperty(property: InsertProperty): Promise<Property>;
-  updateProperty(id: string, property: Partial<InsertProperty>): Promise<Property>;
+  // Properties
+  getProperties(councilId?: string): Promise<Property[]>;
+  getPropertyById(propertyId: string): Promise<Property | undefined>;
+  createProperty(property: any): Promise<Property>;
 
-  // License Application operations
-  listLicenseApplications(organizationId: string): Promise<LicenseApplication[]>;
-  getLicenseApplication(id: string): Promise<LicenseApplication | undefined>;
-  createLicenseApplication(app: InsertLicenseApplication): Promise<LicenseApplication>;
-  updateLicenseApplication(id: string, app: Partial<InsertLicenseApplication>): Promise<LicenseApplication>;
+  // Services
+  getServices(councilId?: string): Promise<Service[]>;
+  getServiceById(serviceId: string): Promise<Service | undefined>;
+  createService(service: any): Promise<Service>;
 
-  // License operations
-  listLicenses(organizationId: string): Promise<License[]>;
-  getLicense(id: string): Promise<License | undefined>;
-  createLicense(license: InsertLicense): Promise<License>;
-  updateLicense(id: string, license: Partial<InsertLicense>): Promise<License>;
+  // Service Requests
+  getServiceRequests(councilId?: string): Promise<ServiceRequest[]>;
+  getServiceRequestById(requestId: string): Promise<ServiceRequest | undefined>;
+  createServiceRequest(request: any): Promise<ServiceRequest>;
+  updateServiceRequestStatus(requestId: string, status: string): Promise<ServiceRequest | undefined>;
 
-  // Inspection operations
-  listInspections(organizationId: string): Promise<Inspection[]>;
-  getInspection(id: string): Promise<Inspection | undefined>;
-  createInspection(inspection: InsertInspection): Promise<Inspection>;
-  updateInspection(id: string, inspection: Partial<InsertInspection>): Promise<Inspection>;
+  // Inspections
+  getInspections(councilId?: string): Promise<Inspection[]>;
+  getInspectionById(inspectionId: string): Promise<Inspection | undefined>;
+  createInspection(inspection: any): Promise<Inspection>;
 
-  // Enforcement operations
-  listEnforcementCases(organizationId: string): Promise<EnforcementCase[]>;
-  getEnforcementCase(id: string): Promise<EnforcementCase | undefined>;
-  createEnforcementCase(enfCase: InsertEnforcementCase): Promise<EnforcementCase>;
-  updateEnforcementCase(id: string, enfCase: Partial<InsertEnforcementCase>): Promise<EnforcementCase>;
+  // Invoices
+  getInvoices(councilId?: string): Promise<Invoice[]>;
+  getInvoiceById(invoiceId: string): Promise<Invoice | undefined>;
+  createInvoice(invoice: any): Promise<Invoice>;
 
-  // Complaint operations
-  listComplaints(organizationId: string): Promise<Complaint[]>;
-  getComplaint(id: string): Promise<Complaint | undefined>;
-  createComplaint(complaint: InsertComplaint): Promise<Complaint>;
-  updateComplaint(id: string, complaint: Partial<InsertComplaint>): Promise<Complaint>;
+  // Payments
+  getPayments(councilId?: string): Promise<Payment[]>;
+  getPaymentById(paymentId: string): Promise<Payment | undefined>;
+  createPayment(payment: any): Promise<Payment>;
 
-  // Invoice operations
-  listInvoices(organizationId: string): Promise<Invoice[]>;
-  getInvoice(id: string): Promise<Invoice | undefined>;
-  createInvoice(invoice: InsertInvoice): Promise<Invoice>;
-  updateInvoice(id: string, invoice: Partial<InsertInvoice>): Promise<Invoice>;
+  // Licences
+  getLicences(councilId?: string): Promise<Licence[]>;
+  getLicenceById(licenceId: string): Promise<Licence | undefined>;
+  createLicence(licence: any): Promise<Licence>;
 
-  // Transaction operations
-  listTransactions(organizationId: string): Promise<Transaction[]>;
-  getTransaction(id: string): Promise<Transaction | undefined>;
-  createTransaction(transaction: InsertTransaction): Promise<Transaction>;
+  // Markets
+  getMarkets(councilId?: string): Promise<Market[]>;
+  createMarket(market: any): Promise<Market>;
 
-  // Audit Log operations
-  listAuditLogs(organizationId?: string): Promise<AuditLog[]>;
-  createAuditLog(log: InsertAuditLog): Promise<AuditLog>;
+  // Stalls
+  getStalls(councilId?: string, marketId?: string): Promise<Stall[]>;
+  createStall(stall: any): Promise<Stall>;
+
+  // Complaints
+  getComplaints(councilId?: string): Promise<Complaint[]>;
+  getComplaintById(complaintId: string): Promise<Complaint | undefined>;
+  createComplaint(complaint: any): Promise<Complaint>;
+
+  // Enforcement Cases
+  getEnforcementCases(councilId?: string): Promise<EnforcementCase[]>;
+  createEnforcementCase(enforcementCase: any): Promise<EnforcementCase>;
+
+  // Audit Logs
+  getAuditLogs(councilId?: string): Promise<AuditLog[]>;
+  createAuditLog(log: any): Promise<AuditLog>;
+
+  // Users
+  getUserById(userId: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
-  // User operations
-  async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
+  // Councils
+  async getCouncils(): Promise<Council[]> {
+    return await db.select().from(councils).orderBy(desc(councils.createdAt));
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user || undefined;
+  async getCouncilById(councilId: string): Promise<Council | undefined> {
+    const [council] = await db.select().from(councils).where(eq(councils.councilId, councilId));
+    return council;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
-  }
-
-  // Organization operations
-  async listOrganizations(): Promise<Organization[]> {
-    return await db.select().from(organizations).orderBy(desc(organizations.createdAt));
-  }
-
-  async getOrganization(id: string): Promise<Organization | undefined> {
-    const [org] = await db.select().from(organizations).where(eq(organizations.id, id));
-    return org || undefined;
-  }
-
-  async createOrganization(org: InsertOrganization): Promise<Organization> {
-    const [created] = await db.insert(organizations).values(org).returning();
+  async createCouncil(council: InsertCouncil): Promise<Council> {
+    const [created] = await db.insert(councils).values(council).returning();
     return created;
   }
 
-  // Citizen operations
-  async listCitizens(organizationId: string): Promise<Citizen[]> {
-    return await db.select().from(citizens)
-      .where(eq(citizens.organizationId, organizationId))
-      .orderBy(desc(citizens.createdAt));
+  // Citizens
+  async getCitizens(councilId?: string): Promise<Citizen[]> {
+    if (councilId) {
+      return await db.select().from(citizens).where(eq(citizens.councilId, councilId));
+    }
+    return await db.select().from(citizens);
   }
 
-  async getCitizen(id: string): Promise<Citizen | undefined> {
-    const [citizen] = await db.select().from(citizens).where(eq(citizens.id, id));
-    return citizen || undefined;
+  async getCitizenById(citizenId: string): Promise<Citizen | undefined> {
+    const [citizen] = await db.select().from(citizens).where(eq(citizens.citizenId, citizenId));
+    return citizen;
   }
 
   async createCitizen(citizen: InsertCitizen): Promise<Citizen> {
@@ -138,24 +138,17 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async updateCitizen(id: string, citizen: Partial<InsertCitizen>): Promise<Citizen> {
-    const [updated] = await db.update(citizens)
-      .set({ ...citizen, updatedAt: new Date() })
-      .where(eq(citizens.id, id))
-      .returning();
-    return updated;
+  // Businesses
+  async getBusinesses(councilId?: string): Promise<Business[]> {
+    if (councilId) {
+      return await db.select().from(businesses).where(eq(businesses.councilId, councilId));
+    }
+    return await db.select().from(businesses);
   }
 
-  // Business operations
-  async listBusinesses(organizationId: string): Promise<Business[]> {
-    return await db.select().from(businesses)
-      .where(eq(businesses.organizationId, organizationId))
-      .orderBy(desc(businesses.createdAt));
-  }
-
-  async getBusiness(id: string): Promise<Business | undefined> {
-    const [business] = await db.select().from(businesses).where(eq(businesses.id, id));
-    return business || undefined;
+  async getBusinessById(businessId: string): Promise<Business | undefined> {
+    const [business] = await db.select().from(businesses).where(eq(businesses.businessId, businessId));
+    return business;
   }
 
   async createBusiness(business: InsertBusiness): Promise<Business> {
@@ -163,222 +156,222 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  async updateBusiness(id: string, business: Partial<InsertBusiness>): Promise<Business> {
-    const [updated] = await db.update(businesses)
-      .set({ ...business, updatedAt: new Date() })
-      .where(eq(businesses.id, id))
-      .returning();
-    return updated;
+  // Properties
+  async getProperties(councilId?: string): Promise<Property[]> {
+    if (councilId) {
+      return await db.select().from(properties).where(eq(properties.councilId, councilId));
+    }
+    return await db.select().from(properties);
   }
 
-  // Property operations
-  async listProperties(organizationId: string): Promise<Property[]> {
-    return await db.select().from(properties)
-      .where(eq(properties.organizationId, organizationId))
-      .orderBy(desc(properties.createdAt));
+  async getPropertyById(propertyId: string): Promise<Property | undefined> {
+    const [property] = await db.select().from(properties).where(eq(properties.propertyId, propertyId));
+    return property;
   }
 
-  async getProperty(id: string): Promise<Property | undefined> {
-    const [property] = await db.select().from(properties).where(eq(properties.id, id));
-    return property || undefined;
-  }
-
-  async createProperty(property: InsertProperty): Promise<Property> {
+  async createProperty(property: any): Promise<Property> {
     const [created] = await db.insert(properties).values(property).returning();
     return created;
   }
 
-  async updateProperty(id: string, property: Partial<InsertProperty>): Promise<Property> {
-    const [updated] = await db.update(properties)
-      .set({ ...property, updatedAt: new Date() })
-      .where(eq(properties.id, id))
-      .returning();
-    return updated;
+  // Services
+  async getServices(councilId?: string): Promise<Service[]> {
+    if (councilId) {
+      return await db.select().from(services).where(eq(services.councilId, councilId));
+    }
+    return await db.select().from(services);
   }
 
-  // License Application operations
-  async listLicenseApplications(organizationId: string): Promise<LicenseApplication[]> {
-    return await db.select().from(licenseApplications)
-      .where(eq(licenseApplications.organizationId, organizationId))
-      .orderBy(desc(licenseApplications.createdAt));
+  async getServiceById(serviceId: string): Promise<Service | undefined> {
+    const [service] = await db.select().from(services).where(eq(services.serviceId, serviceId));
+    return service;
   }
 
-  async getLicenseApplication(id: string): Promise<LicenseApplication | undefined> {
-    const [app] = await db.select().from(licenseApplications).where(eq(licenseApplications.id, id));
-    return app || undefined;
-  }
-
-  async createLicenseApplication(app: InsertLicenseApplication): Promise<LicenseApplication> {
-    const [created] = await db.insert(licenseApplications).values(app).returning();
+  async createService(service: any): Promise<Service> {
+    const [created] = await db.insert(services).values(service).returning();
     return created;
   }
 
-  async updateLicenseApplication(id: string, app: Partial<InsertLicenseApplication>): Promise<LicenseApplication> {
-    const [updated] = await db.update(licenseApplications)
-      .set({ ...app, updatedAt: new Date() })
-      .where(eq(licenseApplications.id, id))
-      .returning();
-    return updated;
+  // Service Requests
+  async getServiceRequests(councilId?: string): Promise<ServiceRequest[]> {
+    if (councilId) {
+      return await db.select().from(serviceRequests).where(eq(serviceRequests.councilId, councilId));
+    }
+    return await db.select().from(serviceRequests);
   }
 
-  // License operations
-  async listLicenses(organizationId: string): Promise<License[]> {
-    return await db.select().from(licenses)
-      .where(eq(licenses.organizationId, organizationId))
-      .orderBy(desc(licenses.createdAt));
+  async getServiceRequestById(requestId: string): Promise<ServiceRequest | undefined> {
+    const [request] = await db.select().from(serviceRequests).where(eq(serviceRequests.requestId, requestId));
+    return request;
   }
 
-  async getLicense(id: string): Promise<License | undefined> {
-    const [license] = await db.select().from(licenses).where(eq(licenses.id, id));
-    return license || undefined;
-  }
-
-  async createLicense(license: InsertLicense): Promise<License> {
-    const [created] = await db.insert(licenses).values(license).returning();
+  async createServiceRequest(request: any): Promise<ServiceRequest> {
+    const [created] = await db.insert(serviceRequests).values(request).returning();
     return created;
   }
 
-  async updateLicense(id: string, license: Partial<InsertLicense>): Promise<License> {
-    const [updated] = await db.update(licenses)
-      .set({ ...license, updatedAt: new Date() })
-      .where(eq(licenses.id, id))
+  async updateServiceRequestStatus(requestId: string, status: string): Promise<ServiceRequest | undefined> {
+    const [updated] = await db.update(serviceRequests)
+      .set({ status })
+      .where(eq(serviceRequests.requestId, requestId))
       .returning();
     return updated;
   }
 
-  // Inspection operations
-  async listInspections(organizationId: string): Promise<Inspection[]> {
-    return await db.select().from(inspections)
-      .where(eq(inspections.organizationId, organizationId))
-      .orderBy(desc(inspections.createdAt));
+  // Inspections
+  async getInspections(councilId?: string): Promise<Inspection[]> {
+    if (councilId) {
+      return await db.select().from(inspections).where(eq(inspections.councilId, councilId));
+    }
+    return await db.select().from(inspections);
   }
 
-  async getInspection(id: string): Promise<Inspection | undefined> {
-    const [inspection] = await db.select().from(inspections).where(eq(inspections.id, id));
-    return inspection || undefined;
+  async getInspectionById(inspectionId: string): Promise<Inspection | undefined> {
+    const [inspection] = await db.select().from(inspections).where(eq(inspections.inspectionId, inspectionId));
+    return inspection;
   }
 
-  async createInspection(inspection: InsertInspection): Promise<Inspection> {
+  async createInspection(inspection: any): Promise<Inspection> {
     const [created] = await db.insert(inspections).values(inspection).returning();
     return created;
   }
 
-  async updateInspection(id: string, inspection: Partial<InsertInspection>): Promise<Inspection> {
-    const [updated] = await db.update(inspections)
-      .set({ ...inspection, updatedAt: new Date() })
-      .where(eq(inspections.id, id))
-      .returning();
-    return updated;
+  // Invoices
+  async getInvoices(councilId?: string): Promise<Invoice[]> {
+    if (councilId) {
+      return await db.select().from(invoices).where(eq(invoices.councilId, councilId));
+    }
+    return await db.select().from(invoices);
   }
 
-  // Enforcement operations
-  async listEnforcementCases(organizationId: string): Promise<EnforcementCase[]> {
-    return await db.select().from(enforcementCases)
-      .where(eq(enforcementCases.organizationId, organizationId))
-      .orderBy(desc(enforcementCases.createdAt));
+  async getInvoiceById(invoiceId: string): Promise<Invoice | undefined> {
+    const [invoice] = await db.select().from(invoices).where(eq(invoices.invoiceId, invoiceId));
+    return invoice;
   }
 
-  async getEnforcementCase(id: string): Promise<EnforcementCase | undefined> {
-    const [enfCase] = await db.select().from(enforcementCases).where(eq(enforcementCases.id, id));
-    return enfCase || undefined;
-  }
-
-  async createEnforcementCase(enfCase: InsertEnforcementCase): Promise<EnforcementCase> {
-    const [created] = await db.insert(enforcementCases).values(enfCase).returning();
-    return created;
-  }
-
-  async updateEnforcementCase(id: string, enfCase: Partial<InsertEnforcementCase>): Promise<EnforcementCase> {
-    const [updated] = await db.update(enforcementCases)
-      .set({ ...enfCase, updatedAt: new Date() })
-      .where(eq(enforcementCases.id, id))
-      .returning();
-    return updated;
-  }
-
-  // Complaint operations
-  async listComplaints(organizationId: string): Promise<Complaint[]> {
-    return await db.select().from(complaints)
-      .where(eq(complaints.organizationId, organizationId))
-      .orderBy(desc(complaints.createdAt));
-  }
-
-  async getComplaint(id: string): Promise<Complaint | undefined> {
-    const [complaint] = await db.select().from(complaints).where(eq(complaints.id, id));
-    return complaint || undefined;
-  }
-
-  async createComplaint(complaint: InsertComplaint): Promise<Complaint> {
-    const [created] = await db.insert(complaints).values(complaint).returning();
-    return created;
-  }
-
-  async updateComplaint(id: string, complaint: Partial<InsertComplaint>): Promise<Complaint> {
-    const [updated] = await db.update(complaints)
-      .set({ ...complaint, updatedAt: new Date() })
-      .where(eq(complaints.id, id))
-      .returning();
-    return updated;
-  }
-
-  // Invoice operations
-  async listInvoices(organizationId: string): Promise<Invoice[]> {
-    return await db.select().from(invoices)
-      .where(eq(invoices.organizationId, organizationId))
-      .orderBy(desc(invoices.createdAt));
-  }
-
-  async getInvoice(id: string): Promise<Invoice | undefined> {
-    const [invoice] = await db.select().from(invoices).where(eq(invoices.id, id));
-    return invoice || undefined;
-  }
-
-  async createInvoice(invoice: InsertInvoice): Promise<Invoice> {
+  async createInvoice(invoice: any): Promise<Invoice> {
     const [created] = await db.insert(invoices).values(invoice).returning();
     return created;
   }
 
-  async updateInvoice(id: string, invoice: Partial<InsertInvoice>): Promise<Invoice> {
-    const [updated] = await db.update(invoices)
-      .set({ ...invoice, updatedAt: new Date() })
-      .where(eq(invoices.id, id))
-      .returning();
-    return updated;
+  // Payments
+  async getPayments(councilId?: string): Promise<Payment[]> {
+    if (councilId) {
+      return await db.select().from(payments).where(eq(payments.councilId, councilId));
+    }
+    return await db.select().from(payments);
   }
 
-  // Transaction operations
-  async listTransactions(organizationId: string): Promise<Transaction[]> {
-    return await db.select().from(transactions)
-      .where(eq(transactions.organizationId, organizationId))
-      .orderBy(desc(transactions.createdAt));
+  async getPaymentById(paymentId: string): Promise<Payment | undefined> {
+    const [payment] = await db.select().from(payments).where(eq(payments.paymentId, paymentId));
+    return payment;
   }
 
-  async getTransaction(id: string): Promise<Transaction | undefined> {
-    const [transaction] = await db.select().from(transactions).where(eq(transactions.id, id));
-    return transaction || undefined;
-  }
-
-  async createTransaction(transaction: InsertTransaction): Promise<Transaction> {
-    const [created] = await db.insert(transactions).values(transaction).returning();
+  async createPayment(payment: any): Promise<Payment> {
+    const [created] = await db.insert(payments).values(payment).returning();
     return created;
   }
 
-  // Audit Log operations
-  async listAuditLogs(organizationId?: string): Promise<AuditLog[]> {
-    if (organizationId) {
-      return await db.select().from(auditLogs)
-        .where(eq(auditLogs.organizationId, organizationId))
-        .orderBy(desc(auditLogs.timestamp))
-        .limit(1000);
+  // Licences
+  async getLicences(councilId?: string): Promise<Licence[]> {
+    if (councilId) {
+      return await db.select().from(licences).where(eq(licences.councilId, councilId));
     }
-    return await db.select().from(auditLogs)
-      .orderBy(desc(auditLogs.timestamp))
-      .limit(1000);
+    return await db.select().from(licences);
   }
 
-  async createAuditLog(log: InsertAuditLog): Promise<AuditLog> {
+  async getLicenceById(licenceId: string): Promise<Licence | undefined> {
+    const [licence] = await db.select().from(licences).where(eq(licences.licenceId, licenceId));
+    return licence;
+  }
+
+  async createLicence(licence: any): Promise<Licence> {
+    const [created] = await db.insert(licences).values(licence).returning();
+    return created;
+  }
+
+  // Markets
+  async getMarkets(councilId?: string): Promise<Market[]> {
+    if (councilId) {
+      return await db.select().from(markets).where(eq(markets.councilId, councilId));
+    }
+    return await db.select().from(markets);
+  }
+
+  async createMarket(market: any): Promise<Market> {
+    const [created] = await db.insert(markets).values(market).returning();
+    return created;
+  }
+
+  // Stalls
+  async getStalls(councilId?: string, marketId?: string): Promise<Stall[]> {
+    if (marketId) {
+      return await db.select().from(stalls).where(eq(stalls.marketId, marketId));
+    }
+    if (councilId) {
+      return await db.select().from(stalls).where(eq(stalls.councilId, councilId));
+    }
+    return await db.select().from(stalls);
+  }
+
+  async createStall(stall: any): Promise<Stall> {
+    const [created] = await db.insert(stalls).values(stall).returning();
+    return created;
+  }
+
+  // Complaints
+  async getComplaints(councilId?: string): Promise<Complaint[]> {
+    if (councilId) {
+      return await db.select().from(complaints).where(eq(complaints.councilId, councilId));
+    }
+    return await db.select().from(complaints);
+  }
+
+  async getComplaintById(complaintId: string): Promise<Complaint | undefined> {
+    const [complaint] = await db.select().from(complaints).where(eq(complaints.complaintId, complaintId));
+    return complaint;
+  }
+
+  async createComplaint(complaint: any): Promise<Complaint> {
+    const [created] = await db.insert(complaints).values(complaint).returning();
+    return created;
+  }
+
+  // Enforcement Cases
+  async getEnforcementCases(councilId?: string): Promise<EnforcementCase[]> {
+    if (councilId) {
+      return await db.select().from(enforcementCases).where(eq(enforcementCases.councilId, councilId));
+    }
+    return await db.select().from(enforcementCases);
+  }
+
+  async createEnforcementCase(enforcementCase: any): Promise<EnforcementCase> {
+    const [created] = await db.insert(enforcementCases).values(enforcementCase).returning();
+    return created;
+  }
+
+  // Audit Logs
+  async getAuditLogs(councilId?: string): Promise<AuditLog[]> {
+    if (councilId) {
+      return await db.select().from(auditLogs).where(eq(auditLogs.councilId, councilId)).orderBy(desc(auditLogs.createdAt));
+    }
+    return await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
+  }
+
+  async createAuditLog(log: any): Promise<AuditLog> {
     const [created] = await db.insert(auditLogs).values(log).returning();
     return created;
+  }
+
+  // Users
+  async getUserById(userId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.userId, userId));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
   }
 }
 
