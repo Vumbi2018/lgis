@@ -415,6 +415,23 @@ export const complaintUpdates = pgTable("complaint_updates", {
 });
 
 // ================================
+// ASSETS & FACILITIES
+// ================================
+
+export const assets = pgTable("assets", {
+  assetId: varchar("asset_id").primaryKey().default(sql`gen_random_uuid()`),
+  councilId: varchar("council_id").notNull(),
+  assetNo: text("asset_no").notNull(),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // building, vehicle, equipment, market_facility
+  location: text("location"),
+  condition: text("condition"), // excellent, good, fair, poor
+  value: text("value"),
+  status: text("status").default("active"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ================================
 // ENFORCEMENT CASES & NOTICES
 // ================================
 
@@ -470,6 +487,7 @@ export const insertComplaintSchema = createInsertSchema(complaints).omit({ compl
 export const insertEnforcementCaseSchema = createInsertSchema(enforcementCases).omit({ caseId: true, createdAt: true });
 export const insertNoticeSchema = createInsertSchema(notices).omit({ noticeId: true, createdAt: true });
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ auditId: true, createdAt: true });
+export const insertAssetSchema = createInsertSchema(assets).omit({ assetId: true, createdAt: true });
 
 // ================================
 // TYPE EXPORTS
@@ -511,3 +529,5 @@ export type ComplaintUpdate = typeof complaintUpdates.$inferSelect;
 export type EnforcementCase = typeof enforcementCases.$inferSelect;
 export type Notice = typeof notices.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+export type Asset = typeof assets.$inferSelect;
+export type InsertAsset = z.infer<typeof insertAssetSchema>;

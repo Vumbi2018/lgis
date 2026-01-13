@@ -175,6 +175,24 @@ export async function registerRoutes(
     }
   });
 
+  app.patch("/api/citizens/:citizenId", async (req, res) => {
+    try {
+      const { citizenId } = req.params;
+      const existing = await storage.getCitizenById(citizenId);
+      if (!existing) {
+        return res.status(404).json({ error: "Citizen not found" });
+      }
+      const updated = await storage.updateCitizen(citizenId, req.body);
+      if (updated) {
+        await logAudit(existing.councilId, undefined, "update", "citizen", citizenId, existing, updated);
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Update citizen error:", error);
+      res.status(400).json({ error: "Failed to update citizen" });
+    }
+  });
+
   // ================================
   // BUSINESSES
   // ================================
@@ -241,6 +259,24 @@ export async function registerRoutes(
       });
     } catch (error) {
       res.status(400).json({ error: "Invalid business data" });
+    }
+  });
+
+  app.patch("/api/businesses/:businessId", async (req, res) => {
+    try {
+      const { businessId } = req.params;
+      const existing = await storage.getBusinessById(businessId);
+      if (!existing) {
+        return res.status(404).json({ error: "Business not found" });
+      }
+      const updated = await storage.updateBusiness(businessId, req.body);
+      if (updated) {
+        await logAudit(existing.councilId, undefined, "update", "business", businessId, existing, updated);
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error("Update business error:", error);
+      res.status(400).json({ error: "Failed to update business" });
     }
   });
 
@@ -689,6 +725,50 @@ export async function registerRoutes(
       res.json(mapped);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch audit logs" });
+    }
+  });
+
+  // ================================
+  // ASSETS
+  // ================================
+  app.get("/api/assets", async (req, res) => {
+    try {
+      const councilId = req.query.organizationId as string || req.query.councilId as string;
+      const data = await storage.getAssets(councilId);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch assets" });
+    }
+  });
+
+  app.get("/api/v1/assets", async (req, res) => {
+    try {
+      const councilId = req.headers["x-council-id"] as string || req.query.councilId as string;
+      const data = await storage.getAssets(councilId);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch assets" });
+    }
+  });
+
+  app.get("/api/assets/:assetId", async (req, res) => {
+    try {
+      const asset = await storage.getAssetById(req.params.assetId);
+      if (!asset) {
+        return res.status(404).json({ error: "Asset not found" });
+      }
+      res.json(asset);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch asset" });
+    }
+  });
+
+  app.post("/api/assets", async (req, res) => {
+    try {
+      const asset = await storage.createAsset(req.body);
+      res.status(201).json(asset);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid asset data" });
     }
   });
 

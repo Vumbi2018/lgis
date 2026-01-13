@@ -2,7 +2,7 @@ import { db } from "./db";
 import {
   councils, councilUnits, users, roles, permissions, rolePermissions, userRoles,
   citizens, businesses, accounts, services, feeSchedules,
-  properties, markets, stalls, complaints
+  properties, markets, stalls, complaints, assets
 } from "@shared/schema";
 
 async function seed() {
@@ -494,6 +494,54 @@ async function seed() {
 
     console.log("✅ Seeded complaints");
 
+    // ================================
+    // ASSETS & FACILITIES
+    // ================================
+    await db.insert(assets).values([
+      {
+        councilId: ncdc.councilId,
+        assetNo: "AST-001",
+        name: "Boroko Market Stall Block A",
+        type: "market_facility",
+        location: "Boroko",
+        condition: "good",
+        value: "PGK 15,000",
+        status: "active",
+      },
+      {
+        councilId: ncdc.councilId,
+        assetNo: "AST-002",
+        name: "Konedobu Council Depot",
+        type: "building",
+        location: "Konedobu",
+        condition: "fair",
+        value: "PGK 2,500,000",
+        status: "active",
+      },
+      {
+        councilId: ncdc.councilId,
+        assetNo: "AST-003",
+        name: "Toyota Hilux Fleet #4",
+        type: "vehicle",
+        location: "City Hall Garage",
+        condition: "excellent",
+        value: "PGK 120,000",
+        status: "active",
+      },
+      {
+        councilId: ncdc.councilId,
+        assetNo: "AST-004",
+        name: "Waigani Community Hall",
+        type: "building",
+        location: "Waigani",
+        condition: "good",
+        value: "PGK 850,000",
+        status: "active",
+      },
+    ]);
+
+    console.log("✅ Seeded assets");
+
     console.log("\n🎉 Database seeding completed successfully!");
     console.log("📊 Summary:");
     console.log("   - 2 Councils");
@@ -509,6 +557,7 @@ async function seed() {
     console.log("   - 3 Properties");
     console.log("   - 1 Market with 3 Stalls");
     console.log("   - 2 Complaints");
+    console.log("   - 4 Assets");
 
   } catch (error) {
     console.error("❌ Seeding failed:", error);

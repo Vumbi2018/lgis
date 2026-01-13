@@ -7,7 +7,7 @@ import {
   inspections, inspectionFindings, inspectionEvidence,
   invoices, invoiceLines, payments, paymentAllocations,
   licences, licenceRenewals, properties, rateAssessments,
-  markets, stalls, complaints, complaintUpdates, enforcementCases, notices,
+  markets, stalls, complaints, complaintUpdates, enforcementCases, notices, assets,
   type Council, type InsertCouncil,
   type Citizen, type InsertCitizen,
   type Business, type InsertBusiness,
@@ -23,7 +23,8 @@ import {
   type Service,
   type Market,
   type Stall,
-  type User
+  type User,
+  type Asset
 } from "@shared/schema";
 
 export interface IStorage {
@@ -36,11 +37,13 @@ export interface IStorage {
   getCitizens(councilId?: string): Promise<Citizen[]>;
   getCitizenById(citizenId: string): Promise<Citizen | undefined>;
   createCitizen(citizen: InsertCitizen): Promise<Citizen>;
+  updateCitizen(citizenId: string, updates: Partial<InsertCitizen>): Promise<Citizen | undefined>;
 
   // Businesses
   getBusinesses(councilId?: string): Promise<Business[]>;
   getBusinessById(businessId: string): Promise<Business | undefined>;
   createBusiness(business: InsertBusiness): Promise<Business>;
+  updateBusiness(businessId: string, updates: Partial<InsertBusiness>): Promise<Business | undefined>;
 
   // Properties
   getProperties(councilId?: string): Promise<Property[]>;
@@ -102,6 +105,11 @@ export interface IStorage {
   // Users
   getUserById(userId: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+
+  // Assets
+  getAssets(councilId?: string): Promise<any[]>;
+  getAssetById(assetId: string): Promise<any | undefined>;
+  createAsset(asset: any): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -138,6 +146,14 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async updateCitizen(citizenId: string, updates: Partial<InsertCitizen>): Promise<Citizen | undefined> {
+    const [updated] = await db.update(citizens)
+      .set(updates)
+      .where(eq(citizens.citizenId, citizenId))
+      .returning();
+    return updated;
+  }
+
   // Businesses
   async getBusinesses(councilId?: string): Promise<Business[]> {
     if (councilId) {
@@ -154,6 +170,14 @@ export class DatabaseStorage implements IStorage {
   async createBusiness(business: InsertBusiness): Promise<Business> {
     const [created] = await db.insert(businesses).values(business).returning();
     return created;
+  }
+
+  async updateBusiness(businessId: string, updates: Partial<InsertBusiness>): Promise<Business | undefined> {
+    const [updated] = await db.update(businesses)
+      .set(updates)
+      .where(eq(businesses.businessId, businessId))
+      .returning();
+    return updated;
   }
 
   // Properties
@@ -372,6 +396,24 @@ export class DatabaseStorage implements IStorage {
   async getUserByEmail(email: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.email, email));
     return user;
+  }
+
+  // Assets
+  async getAssets(councilId?: string): Promise<Asset[]> {
+    if (councilId) {
+      return await db.select().from(assets).where(eq(assets.councilId, councilId));
+    }
+    return await db.select().from(assets);
+  }
+
+  async getAssetById(assetId: string): Promise<Asset | undefined> {
+    const [asset] = await db.select().from(assets).where(eq(assets.assetId, assetId));
+    return asset;
+  }
+
+  async createAsset(asset: any): Promise<Asset> {
+    const [created] = await db.insert(assets).values(asset).returning();
+    return created;
   }
 }
 
