@@ -113,11 +113,11 @@ export default function RegistryPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {citizens.map((citizen) => (
-                        <TableRow key={citizen.id} data-testid={`row-citizen-${citizen.id}`}>
-                          <TableCell className="font-medium font-mono text-xs">{citizen.id.slice(0, 8)}...</TableCell>
-                          <TableCell className="font-medium">{citizen.fullName}</TableCell>
-                          <TableCell>{citizen.nidNumber || "—"}</TableCell>
+                      {citizens.map((citizen, index) => (
+                        <TableRow key={citizen.citizenId || `citizen-${index}`} data-testid={`row-citizen-${citizen.citizenId}`}>
+                          <TableCell className="font-medium font-mono text-xs">{citizen.localCitizenNo || citizen.citizenId?.slice(0, 8) + "..."}</TableCell>
+                          <TableCell className="font-medium">{citizen.firstName} {citizen.lastName}</TableCell>
+                          <TableCell>{citizen.nationalId || "—"}</TableCell>
                           <TableCell>
                             <div className="flex items-center text-muted-foreground">
                               <MapPin className="mr-1 h-3 w-3" />
@@ -130,7 +130,7 @@ export default function RegistryPage() {
                           <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" data-testid={`button-actions-citizen-${citizen.id}`}>
+                                <Button variant="ghost" size="icon" data-testid={`button-actions-citizen-${citizen.citizenId}`}>
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -166,9 +166,9 @@ export default function RegistryPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Business ID</TableHead>
-                        <TableHead>Business Name</TableHead>
-                        <TableHead>Type</TableHead>
+                        <TableHead>Reg. No</TableHead>
+                        <TableHead>Legal Name</TableHead>
+                        <TableHead>Trading As</TableHead>
                         <TableHead>TIN</TableHead>
                         <TableHead>Location</TableHead>
                         <TableHead>Status</TableHead>
@@ -176,14 +176,14 @@ export default function RegistryPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {businesses.map((biz) => (
-                        <TableRow key={biz.id} data-testid={`row-business-${biz.id}`}>
-                          <TableCell className="font-medium font-mono text-xs">{biz.id.slice(0, 8)}...</TableCell>
-                          <TableCell className="font-medium">{biz.businessName}</TableCell>
+                      {businesses.map((biz, index) => (
+                        <TableRow key={biz.businessId || `business-${index}`} data-testid={`row-business-${biz.businessId}`}>
+                          <TableCell className="font-medium font-mono text-xs">{biz.registrationNo || biz.businessId?.slice(0, 8) + "..."}</TableCell>
+                          <TableCell className="font-medium">{biz.legalName}</TableCell>
                           <TableCell>
-                            <Badge variant="outline">{biz.businessType || "General"}</Badge>
+                            <span className="text-muted-foreground">{biz.tradingName || "—"}</span>
                           </TableCell>
-                          <TableCell>{biz.tinNumber || "—"}</TableCell>
+                          <TableCell>{biz.tin || "—"}</TableCell>
                           <TableCell>
                             <div className="flex items-center text-muted-foreground">
                               <MapPin className="mr-1 h-3 w-3" />
@@ -196,7 +196,7 @@ export default function RegistryPage() {
                           <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" data-testid={`button-actions-business-${biz.id}`}>
+                                <Button variant="ghost" size="icon" data-testid={`button-actions-business-${biz.businessId}`}>
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>

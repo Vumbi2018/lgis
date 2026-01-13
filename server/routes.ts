@@ -92,6 +92,16 @@ export async function registerRoutes(
     }
   });
 
+  // Legacy councils endpoint for frontend compatibility
+  app.get("/api/councils", async (req, res) => {
+    try {
+      const data = await storage.getCouncils();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch councils" });
+    }
+  });
+
   // ================================
   // CITIZENS
   // ================================
@@ -129,22 +139,12 @@ export async function registerRoutes(
     }
   });
 
-  // Legacy endpoint
+  // Legacy endpoint - returns new schema format for updated frontend
   app.get("/api/citizens", async (req, res) => {
     try {
-      const councilId = req.query.organizationId as string;
+      const councilId = req.query.organizationId as string || req.query.councilId as string;
       const citizens = await storage.getCitizens(councilId);
-      const mapped = citizens.map(c => ({
-        id: c.citizenId,
-        fullName: `${c.firstName} ${c.lastName}`,
-        nidNumber: c.nationalId,
-        organizationId: c.councilId,
-        phone: c.phone,
-        email: c.email,
-        address: c.address,
-        createdAt: c.createdAt
-      }));
-      res.json(mapped);
+      res.json(citizens);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch citizens" });
     }
@@ -211,22 +211,12 @@ export async function registerRoutes(
     }
   });
 
-  // Legacy endpoint
+  // Legacy endpoint - returns new schema format for updated frontend
   app.get("/api/businesses", async (req, res) => {
     try {
-      const councilId = req.query.organizationId as string;
+      const councilId = req.query.organizationId as string || req.query.councilId as string;
       const businesses = await storage.getBusinesses(councilId);
-      const mapped = businesses.map(b => ({
-        id: b.businessId,
-        businessName: b.legalName,
-        tradingAs: b.tradingName,
-        tinNumber: b.tin,
-        registrationNumber: b.registrationNo,
-        organizationId: b.councilId,
-        status: b.status,
-        createdAt: b.createdAt
-      }));
-      res.json(mapped);
+      res.json(businesses);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch businesses" });
     }
@@ -293,15 +283,9 @@ export async function registerRoutes(
   // Legacy endpoint
   app.get("/api/properties", async (req, res) => {
     try {
-      const councilId = req.query.organizationId as string;
+      const councilId = req.query.organizationId as string || req.query.councilId as string;
       const properties = await storage.getProperties(councilId);
-      const mapped = properties.map(p => ({
-        id: p.propertyId,
-        parcelId: p.parcelId,
-        organizationId: p.councilId,
-        ...p
-      }));
-      res.json(mapped);
+      res.json(properties);
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch properties" });
     }

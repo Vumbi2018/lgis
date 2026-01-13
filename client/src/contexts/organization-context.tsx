@@ -1,38 +1,34 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
 
-interface Organization {
-  id: string;
+interface Council {
+  councilId: string;
   name: string;
-  type: string;
-  district: string | null;
-  province: string | null;
+  level: string;
+  countryCode: string | null;
+  currencyCode: string | null;
+  timezone: string | null;
+  status: string | null;
 }
 
 interface OrganizationContextType {
-  currentOrganization: Organization | null;
-  setCurrentOrganization: (org: Organization) => void;
-  organizations: Organization[];
+  currentOrganization: Council | null;
+  setCurrentOrganization: (org: Council) => void;
+  organizations: Council[];
   isLoading: boolean;
 }
 
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
 
 export function OrganizationProvider({ children }: { children: React.ReactNode }) {
-  const [currentOrganization, setCurrentOrganization] = useState<Organization | null>(null);
+  const [currentOrganization, setCurrentOrganization] = useState<Council | null>(null);
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["organizations"],
-    queryFn: async () => {
-      const result = await api.organizations.list();
-      return result as Organization[];
-    },
+  const { data, isLoading } = useQuery<Council[]>({
+    queryKey: ["/api/councils"],
   });
 
-  const organizations: Organization[] = (data as Organization[]) || [];
+  const organizations: Council[] = data || [];
 
-  // Set first organization as default when loaded
   useEffect(() => {
     if (organizations.length > 0 && !currentOrganization) {
       setCurrentOrganization(organizations[0]);

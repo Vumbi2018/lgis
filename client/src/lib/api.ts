@@ -19,7 +19,14 @@ export async function fetchAPI<T>(endpoint: string, options?: RequestInit): Prom
 }
 
 export const api = {
-  // Organizations
+  // Councils (new schema)
+  councils: {
+    list: () => fetchAPI("/councils"),
+    get: (councilId: string) => fetchAPI(`/councils/${councilId}`),
+    create: (data: any) => fetchAPI("/councils", { method: "POST", body: JSON.stringify(data) }),
+  },
+
+  // Organizations (legacy compatibility)
   organizations: {
     list: () => fetchAPI("/organizations"),
     create: (data: any) => fetchAPI("/organizations", { method: "POST", body: JSON.stringify(data) }),

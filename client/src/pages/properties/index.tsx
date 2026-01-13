@@ -28,7 +28,8 @@ export default function PropertiesPage() {
   const filteredProperties = properties.filter(p => 
     (p.ownerName?.toLowerCase() || "").includes(searchTerm.toLowerCase()) || 
     (p.suburb?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
-    (p.id?.toLowerCase() || "").includes(searchTerm.toLowerCase())
+    (p.parcelId?.toLowerCase() || "").includes(searchTerm.toLowerCase()) ||
+    (p.propertyId?.toLowerCase() || "").includes(searchTerm.toLowerCase())
   );
 
   const handleAction = (action: string) => {
@@ -154,12 +155,12 @@ export default function PropertiesPage() {
               <TableBody>
                 {filteredProperties.map((prop) => (
                   <TableRow 
-                    key={prop.id} 
+                    key={prop.propertyId} 
                     className="cursor-pointer hover:bg-muted/50" 
-                    onClick={() => setLocation(`/properties/${prop.id}`)}
-                    data-testid={`row-property-${prop.id}`}
+                    onClick={() => setLocation(`/properties/${prop.propertyId}`)}
+                    data-testid={`row-property-${prop.propertyId}`}
                   >
-                    <TableCell className="font-medium font-mono text-xs">{prop.id.slice(0, 8)}...</TableCell>
+                    <TableCell className="font-medium font-mono text-xs">{prop.parcelId || prop.propertyId?.slice(0, 8) + "..."}</TableCell>
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="font-medium">Sect {prop.section || "—"} / Lot {prop.lot || "—"}</span>
@@ -178,7 +179,7 @@ export default function PropertiesPage() {
                       {getStatusBadge(prop.status)}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" data-testid={`button-details-property-${prop.id}`}>
+                      <Button variant="ghost" size="sm" data-testid={`button-details-property-${prop.propertyId}`}>
                         Details <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                     </TableCell>
