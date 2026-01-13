@@ -6,9 +6,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRoute, useLocation } from "wouter";
 import { useState } from "react";
-import { CheckCircle, Upload, ChevronRight, ChevronLeft, FileText, AlertCircle, Loader2 } from "lucide-react";
+import { CheckCircle, Upload, ChevronRight, ChevronLeft, FileText, AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function ApplicationWizard() {
   const [, params] = useRoute("/licensing/apply/:id");
@@ -56,14 +64,15 @@ export default function ApplicationWizard() {
   };
 
   const steps = [
-    { number: 1, title: "Applicant Details", description: "Basic information about you or your company" },
-    { number: 2, title: "Document Checklist", description: "Upload required supporting documents" },
-    { number: 3, title: "Review & Submit", description: "Verify information and submit" }
+    { number: 1, title: "Applicant Details", description: "Business & Contact Info" },
+    { number: 2, title: "Premises & Land", description: "Location & Parcel Info" },
+    { number: 3, title: "Document Checklist", description: "Required Attachments" },
+    { number: 4, title: "Review & Submit", description: "Verification" }
   ];
 
   return (
     <MainLayout>
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <Button variant="ghost" className="mb-4 pl-0" onClick={() => setLocation("/licensing")}>
@@ -111,48 +120,54 @@ export default function ApplicationWizard() {
                 <CardDescription>Please provide details about the business entity applying for the license.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="bizName">Business Name (As Registered)</Label>
                     <Input id="bizName" placeholder="e.g. Papindo Trading Ltd" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tradeName">Trade Name (If different)</Label>
+                    <Input id="tradeName" placeholder="e.g. Papindo Supermarket Waigani" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="tin">Tax Identification Number (TIN)</Label>
                     <Input id="tin" placeholder="10 Digits" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="contactName">Contact Person</Label>
-                    <Input id="contactName" placeholder="Full Name" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <Input id="phone" placeholder="+675..." />
+                    <Label htmlFor="appType">Application Type</Label>
+                    <Select defaultValue="new">
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="new">New Application</SelectItem>
+                        <SelectItem value="renewal">Renewal</SelectItem>
+                        <SelectItem value="transfer">Transfer of Ownership</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   
-                  <div className="col-span-2 space-y-4 pt-2">
-                    <Label className="text-base font-semibold">Physical Address of Premises</Label>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="section">Section</Label>
-                        <Input id="section" placeholder="e.g. 45" />
+                  <div className="col-span-2 border-t pt-4 mt-2">
+                    <h3 className="font-medium mb-4 text-sm">Contact Details</h3>
+                    <div className="grid md:grid-cols-3 gap-4">
+                       <div className="space-y-2">
+                        <Label htmlFor="contactName">Contact Person</Label>
+                        <Input id="contactName" placeholder="Full Name" />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="lot">Lot</Label>
-                        <Input id="lot" placeholder="e.g. 12" />
+                        <Label htmlFor="phone">Phone Number</Label>
+                        <Input id="phone" placeholder="+675..." />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="suburb">Suburb</Label>
-                        <Input id="suburb" placeholder="e.g. Boroko" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="district">District</Label>
-                        <Input id="district" placeholder="e.g. NCD" />
+                        <Label htmlFor="email">Email Address</Label>
+                        <Input id="email" type="email" placeholder="email@company.com" />
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="description">Detailed Description / Census Unit</Label>
-                      <Input id="description" placeholder="Building name, floor number, or specific landmarks..." />
-                    </div>
+                  </div>
+
+                  <div className="col-span-2 space-y-2">
+                    <Label htmlFor="postalAddress">Postal Address</Label>
+                    <Textarea id="postalAddress" placeholder="PO Box..." className="h-20" />
                   </div>
                 </div>
               </CardContent>
@@ -165,6 +180,109 @@ export default function ApplicationWizard() {
           )}
 
           {step === 2 && (
+            <Card className="animate-in fade-in slide-in-from-bottom-4">
+              <CardHeader>
+                <CardTitle>Premises & Land Information</CardTitle>
+                <CardDescription>Enter the location details as per the Land Title/Lease Agreement.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="bg-secondary/20 p-4 rounded-lg border border-secondary mb-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <FileText className="h-4 w-4 text-primary" />
+                    <span className="font-medium text-sm">Parcel Identification</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="section" className="text-xs">Section</Label>
+                      <Input id="section" placeholder="e.g. 45" className="bg-background" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="lot" className="text-xs">Lot / Portion</Label>
+                      <Input id="lot" placeholder="e.g. 12" className="bg-background" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="allotment" className="text-xs">Allotment</Label>
+                      <Input id="allotment" placeholder="Optional" className="bg-background" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="province" className="text-xs">Province Code</Label>
+                      <Input id="province" defaultValue="04 (NCD)" disabled className="bg-muted" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="suburb">Suburb / Town</Label>
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Suburb" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="boroko">Boroko</SelectItem>
+                        <SelectItem value="waigani">Waigani</SelectItem>
+                        <SelectItem value="gordons">Gordons</SelectItem>
+                        <SelectItem value="hohola">Hohola</SelectItem>
+                        <SelectItem value="erehu">Gerehu</SelectItem>
+                        <SelectItem value="konedobu">Konedobu</SelectItem>
+                        <SelectItem value="badili">Badili</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="landUse">Current Land Use</Label>
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Use" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="commercial">Commercial</SelectItem>
+                        <SelectItem value="residential">Residential</SelectItem>
+                        <SelectItem value="industrial">Industrial</SelectItem>
+                        <SelectItem value="mixed">Mixed Use</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="col-span-2 space-y-2">
+                    <Label htmlFor="description">Detailed Location Description</Label>
+                    <Input id="description" placeholder="Building Name, Floor, Landmarks (e.g. Vision City Mega Mall, Level 2)" />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3 pt-4 border-t">
+                   <div className="space-y-2">
+                    <Label htmlFor="owner">Title Holder / Landlord</Label>
+                    <Input id="owner" placeholder="Name of Owner" />
+                  </div>
+                   <div className="space-y-2">
+                    <Label htmlFor="bins">Garbage Bins Required</Label>
+                    <Input id="bins" type="number" defaultValue="1" />
+                  </div>
+                   <div className="space-y-2">
+                    <Label htmlFor="collection">Collection Frequency</Label>
+                    <Select defaultValue="weekly">
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="weekly">Weekly</SelectItem>
+                        <SelectItem value="twice">Twice Weekly</SelectItem>
+                        <SelectItem value="daily">Daily</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-between">
+                <Button variant="ghost" onClick={() => setStep(1)}>Back</Button>
+                <Button onClick={() => setStep(3)}>
+                  Next Step <ChevronRight className="ml-2 h-4 w-4" />
+                </Button>
+              </CardFooter>
+            </Card>
+          )}
+
+          {step === 3 && (
             <Card className="animate-in fade-in slide-in-from-bottom-4">
               <CardHeader>
                 <CardTitle>Document Checklist</CardTitle>
@@ -223,15 +341,15 @@ export default function ApplicationWizard() {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between">
-                <Button variant="ghost" onClick={() => setStep(1)}>Back</Button>
-                <Button onClick={() => setStep(3)}>
+                <Button variant="ghost" onClick={() => setStep(2)}>Back</Button>
+                <Button onClick={() => setStep(4)}>
                   Next Step <ChevronRight className="ml-2 h-4 w-4" />
                 </Button>
               </CardFooter>
             </Card>
           )}
 
-          {step === 3 && (
+          {step === 4 && (
             <Card className="animate-in fade-in slide-in-from-bottom-4">
               <CardHeader>
                 <CardTitle>Review Application</CardTitle>
@@ -273,7 +391,7 @@ export default function ApplicationWizard() {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-between">
-                <Button variant="ghost" onClick={() => setStep(2)}>Back</Button>
+                <Button variant="ghost" onClick={() => setStep(3)}>Back</Button>
                 <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={handleSubmit}>
                   Submit Application
                 </Button>
