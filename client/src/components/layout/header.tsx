@@ -1,4 +1,4 @@
-import { Bell, Search, Menu, User } from "lucide-react";
+import { Bell, Search, Menu, User, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -21,15 +21,18 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-6 shadow-xs">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-white px-6 shadow-sm">
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" className="md:hidden">
           <Menu className="h-5 w-5" />
         </Button>
-        <div className="hidden md:flex items-center text-sm text-muted-foreground">
-          <span className="font-semibold text-foreground">Kampala Capital City Authority</span>
-          <span className="mx-2">/</span>
-          <span>FY 2025-2026</span>
+        <div className="flex flex-col md:flex-row md:items-center text-sm">
+          <span className="font-bold text-foreground text-lg tracking-tight">National Capital District Commission</span>
+          <span className="hidden md:inline mx-2 text-muted-foreground">|</span>
+          <span className="text-xs md:text-sm text-muted-foreground flex items-center">
+             <MapPin className="h-3 w-3 mr-1 text-red-600" />
+             Port Moresby, Papua New Guinea
+          </span>
         </div>
       </div>
 
@@ -38,20 +41,20 @@ export function Header() {
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             type="search"
-            placeholder="Search records..."
-            className="w-full bg-background pl-9 md:w-[300px]"
+            placeholder="Search NCDC records..."
+            className="w-full bg-secondary/20 pl-9 md:w-[300px] border-none focus-visible:ring-1 focus-visible:ring-yellow-500"
           />
         </div>
 
-        <Button variant="ghost" size="icon" className="relative">
+        <Button variant="ghost" size="icon" className="relative hover:bg-yellow-50">
           <Bell className="h-5 w-5" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-destructive" />
+          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-600 border border-white" />
         </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-9 w-9 rounded-full bg-secondary">
-               <span className="font-semibold">{user.avatar}</span>
+            <Button variant="ghost" className="relative h-9 w-9 rounded-full bg-black text-white hover:bg-black/80 ring-2 ring-offset-2 ring-transparent focus:ring-yellow-500">
+               <span className="font-bold text-xs">{user.avatar}</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -62,10 +65,10 @@ export function Header() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Settings</DropdownMenuItem>
+            <DropdownMenuItem>Officer Profile</DropdownMenuItem>
+            <DropdownMenuItem>NCDC Settings</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={handleLogout}>
+            <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50" onClick={handleLogout}>
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>
