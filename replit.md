@@ -87,3 +87,38 @@ Preferred communication style: Simple, everyday language.
 - **@replit/vite-plugin-runtime-error-modal**: Development error overlay
 - **@replit/vite-plugin-cartographer**: Code navigation (dev only)
 - **@replit/vite-plugin-dev-banner**: Development environment indicator
+
+## Recent Changes
+
+### January 2026
+- Added Assets & Facilities module with database table and API
+- Implemented full CRUD operations for Citizens and Businesses
+- Added PATCH endpoints for updating citizen and business records
+- Implemented deactivation functionality for registry records
+- Created comprehensive documentation in `/docs` folder
+- Added database backup export (database_backup.sql)
+
+## Database Schema
+
+35 tables organized into modules:
+- **Core**: councils, councilUnits, users, roles, permissions
+- **Registry**: citizens, businesses, properties, assets
+- **Billing**: accounts, invoices, invoiceLines, payments, paymentAllocations
+- **Services**: services, feeSchedules, serviceRequests, licences, licenceRenewals
+- **Workflow**: workflowDefinitions, workflowSteps, workflowInstances
+- **Inspections**: inspections, inspectionFindings, inspectionEvidence
+- **Enforcement**: enforcementCases, notices, complaints, complaintUpdates
+- **Markets**: markets, stalls, rateAssessments
+- **Audit**: auditLogs
+
+## Documentation
+
+Comprehensive documentation available in `/docs`:
+- `DATABASE_SCHEMA.md` - Complete database table documentation
+- `API_REFERENCE.md` - REST API endpoint reference
+- `PROJECT_STRUCTURE.md` - Codebase organization
+- `INSTALLATION_GUIDE.md` - Setup and deployment instructions
+
+## Backup Files
+
+- `database_backup.sql` - Full PostgreSQL database export
