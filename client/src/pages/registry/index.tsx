@@ -15,6 +15,8 @@ import {
 import { Plus, Search, Filter, MoreHorizontal, MapPin } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
+import { toast } from "@/hooks/use-toast";
+
 const CITIZENS = [
   { id: "CIT-001", name: "Kila Wari", nin: "NID1002345678", location: "Boroko", status: "Active" },
   { id: "CIT-002", name: "Grace Morea", nin: "NID1003456789", location: "Gerehu Stage 2", status: "Active" },
@@ -30,6 +32,13 @@ const BUSINESSES = [
 ];
 
 export default function RegistryPage() {
+  const handleNewRegistration = () => {
+    toast({
+      title: "Registration Form",
+      description: "Opening new registration wizard...",
+    });
+  };
+
   return (
     <MainLayout>
       <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
@@ -38,7 +47,7 @@ export default function RegistryPage() {
           <p className="text-muted-foreground">Manage citizen and business records.</p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button>
+          <Button onClick={handleNewRegistration}>
             <Plus className="mr-2 h-4 w-4" />
             New Registration
           </Button>

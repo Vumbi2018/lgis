@@ -6,15 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRoute, useLocation } from "wouter";
 import { useState } from "react";
-import { CheckCircle, Upload, ChevronRight, ChevronLeft, FileText, AlertCircle } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+import { CheckCircle, Upload, ChevronRight, ChevronLeft, FileText, AlertCircle, Loader2 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
 
 export default function ApplicationWizard() {
   const [, params] = useRoute("/licensing/apply/:id");
   const [, setLocation] = useLocation();
   const [step, setStep] = useState(1);
+  const [uploads, setUploads] = useState<Record<string, boolean>>({});
+  const [uploading, setUploading] = useState<Record<string, boolean>>({});
   
   const licenseId = params?.id;
   const license = LICENSE_TYPES.find(l => l.id === licenseId);
@@ -32,6 +33,27 @@ export default function ApplicationWizard() {
       </MainLayout>
     );
   }
+
+  const handleUpload = (itemId: string) => {
+    setUploading(prev => ({ ...prev, [itemId]: true }));
+    // Simulate upload delay
+    setTimeout(() => {
+      setUploading(prev => ({ ...prev, [itemId]: false }));
+      setUploads(prev => ({ ...prev, [itemId]: true }));
+      toast({
+        title: "File Uploaded",
+        description: "Document has been successfully attached.",
+      });
+    }, 1500);
+  };
+
+  const handleSubmit = () => {
+    toast({
+      title: "Application Submitted",
+      description: `Your application for ${license.name} has been received. Reference: APP-${Math.floor(Math.random() * 10000)}`,
+    });
+    setLocation("/licensing");
+  };
 
   const steps = [
     { number: 1, title: "Applicant Details", description: "Basic information about you or your company" },
@@ -106,9 +128,31 @@ export default function ApplicationWizard() {
                     <Label htmlFor="phone">Phone Number</Label>
                     <Input id="phone" placeholder="+675..." />
                   </div>
-                  <div className="col-span-2 space-y-2">
-                    <Label htmlFor="address">Physical Address of Premises</Label>
-                    <Textarea id="address" placeholder="Section, Lot, Suburb, District..." />
+                  
+                  <div className="col-span-2 space-y-4 pt-2">
+                    <Label className="text-base font-semibold">Physical Address of Premises</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="section">Section</Label>
+                        <Input id="section" placeholder="e.g. 45" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="lot">Lot</Label>
+                        <Input id="lot" placeholder="e.g. 12" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="suburb">Suburb</Label>
+                        <Input id="suburb" placeholder="e.g. Boroko" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="district">District</Label>
+                        <Input id="district" placeholder="e.g. NCD" />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Detailed Description / Census Unit</Label>
+                      <Input id="description" placeholder="Building name, floor number, or specific landmarks..." />
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -135,9 +179,14 @@ export default function ApplicationWizard() {
                 <div className="space-y-4">
                   {license.checklist.map((item) => (
                     <div key={item.id} className="flex items-start space-x-4 border p-4 rounded-lg bg-secondary/10">
-                      <Checkbox id={item.id} className="mt-1" />
+                      <Checkbox 
+                        id={item.id} 
+                        className="mt-1" 
+                        checked={uploads[item.id] || false}
+                        disabled
+                      />
                       <div className="flex-1 space-y-1">
-                        <Label htmlFor={item.id} className="font-medium leading-none cursor-pointer">
+                        <Label htmlFor={item.id} className="font-medium leading-none">
                           {item.label}
                           {item.required && <span className="text-destructive ml-1">*</span>}
                         </Label>
@@ -145,8 +194,29 @@ export default function ApplicationWizard() {
                           Responsible: {item.responsible} {item.note && `• ${item.note}`}
                         </p>
                       </div>
-                      <Button variant="outline" size="sm">
-                        <Upload className="h-3 w-3 mr-2" /> Upload
+                      <Button 
+                        variant={uploads[item.id] ? "default" : "outline"} 
+                        size="sm"
+                        onClick={() => handleUpload(item.id)}
+                        disabled={uploading[item.id] || uploads[item.id]}
+                        className={uploads[item.id] ? "bg-green-600 hover:bg-green-700 text-white" : ""}
+                      >
+                        {uploading[item.id] ? (
+                          <>
+                            <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                            Uploading...
+                          </>
+                        ) : uploads[item.id] ? (
+                          <>
+                            <CheckCircle className="h-3 w-3 mr-2" />
+                            Attached
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-3 w-3 mr-2" />
+                            Upload
+                          </>
+                        )}
                       </Button>
                     </div>
                   ))}
@@ -184,7 +254,7 @@ export default function ApplicationWizard() {
                     </div>
                     <div>
                       <dt className="text-muted-foreground">Documents Attached</dt>
-                      <dd className="font-medium">{license.checklist.length} Files</dd>
+                      <dd className="font-medium">{Object.keys(uploads).length} / {license.checklist.length}</dd>
                     </div>
                     <div>
                       <dt className="text-muted-foreground">Application Fee</dt>
@@ -204,7 +274,7 @@ export default function ApplicationWizard() {
               </CardContent>
               <CardFooter className="flex justify-between">
                 <Button variant="ghost" onClick={() => setStep(2)}>Back</Button>
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={() => setLocation("/licensing")}>
+                <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={handleSubmit}>
                   Submit Application
                 </Button>
               </CardFooter>

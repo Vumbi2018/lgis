@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Search, FileText, Building, Store, Car, ArrowRight } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 
 const SERVICES = [
   { id: 1, title: "Trading License", category: "Business", fee: "Variable", icon: Store, description: "Apply for or renew annual trading license for retail and wholesale businesses." },
@@ -15,6 +16,13 @@ const SERVICES = [
 ];
 
 export default function ServicesPage() {
+  const handleConfigure = (serviceName: string) => {
+    toast({
+      title: "Configure Service",
+      description: `Loading configuration settings for ${serviceName}...`,
+    });
+  };
+
   return (
     <MainLayout>
       <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
@@ -52,7 +60,10 @@ export default function ServicesPage() {
               </div>
             </CardContent>
             <CardFooter>
-              <Button className="w-full group-hover:bg-primary group-hover:text-primary-foreground">
+              <Button 
+                className="w-full group-hover:bg-primary group-hover:text-primary-foreground"
+                onClick={() => handleConfigure(service.title)}
+              >
                 Configure Service <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </CardFooter>

@@ -14,6 +14,7 @@ import {
 import { Search, Filter, Plus, Building2, MapPin, DollarSign, FileText, ArrowRight } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
 
 // Mock Data for Properties
 const PROPERTIES = [
@@ -84,6 +85,13 @@ export default function PropertiesPage() {
     p.id.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleAction = (action: string) => {
+    toast({
+      title: action,
+      description: `Starting ${action.toLowerCase()} process...`,
+    });
+  };
+
   return (
     <MainLayout>
       <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
@@ -92,11 +100,11 @@ export default function PropertiesPage() {
           <p className="text-muted-foreground">Manage land valuation, rates, and titles.</p>
         </div>
         <div className="flex gap-2">
-           <Button variant="outline" className="bg-white hover:bg-yellow-50">
+           <Button variant="outline" className="bg-white hover:bg-yellow-50" onClick={() => handleAction("Generate Rates Notices")}>
             <FileText className="mr-2 h-4 w-4" />
             Generate Rates Notices
            </Button>
-           <Button className="bg-black text-yellow-500 hover:bg-black/90">
+           <Button className="bg-black text-yellow-500 hover:bg-black/90" onClick={() => handleAction("New Assessment")}>
             <Plus className="mr-2 h-4 w-4" />
             New Assessment
            </Button>
