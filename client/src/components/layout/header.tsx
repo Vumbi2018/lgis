@@ -9,25 +9,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MOCK_USERS, MOCK_COUNCILS } from "@/lib/mock-data";
+import { MOCK_USERS } from "@/lib/mock-data";
 import { useLocation } from "wouter";
-import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
+import { useOrganization } from "@/contexts/organization-context";
 
 export function Header() {
   const user = MOCK_USERS[0];
   const [location, setLocation] = useLocation();
-  const [currentCouncil, setCurrentCouncil] = useState(MOCK_COUNCILS[0]);
+  const { currentOrganization, setCurrentOrganization, organizations } = useOrganization();
 
   const handleLogout = () => {
     setLocation("/");
   };
 
-  const handleCouncilSwitch = (council: typeof MOCK_COUNCILS[0]) => {
-    setCurrentCouncil(council);
+  const handleCouncilSwitch = (org: any) => {
+    setCurrentOrganization(org);
     toast({
       title: "Organization Switched",
-      description: `Active context changed to ${council.name}`,
+      description: `Active context changed to ${org.name}`,
     });
   };
 
@@ -41,18 +41,20 @@ export function Header() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-auto p-0 hover:bg-transparent font-normal flex items-center gap-2">
-                <span className="font-bold text-foreground text-lg tracking-tight text-left">{currentCouncil.name}</span>
+                <span className="font-bold text-foreground text-lg tracking-tight text-left">
+                  {currentOrganization?.name || "Loading..."}
+                </span>
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-[300px]">
               <DropdownMenuLabel>Switch Organization</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {MOCK_COUNCILS.map((council) => (
-                <DropdownMenuItem key={council.id} onClick={() => handleCouncilSwitch(council)} className="cursor-pointer">
+              {organizations.map((org) => (
+                <DropdownMenuItem key={org.id} onClick={() => handleCouncilSwitch(org)} className="cursor-pointer">
                   <div className="flex flex-col">
-                    <span className="font-medium">{council.name}</span>
-                    <span className="text-xs text-muted-foreground">{council.district}</span>
+                    <span className="font-medium">{org.name}</span>
+                    <span className="text-xs text-muted-foreground">{org.district}</span>
                   </div>
                 </DropdownMenuItem>
               ))}
@@ -61,7 +63,7 @@ export function Header() {
           
           <span className="text-xs text-muted-foreground flex items-center mt-0.5">
              <MapPin className="h-3 w-3 mr-1 text-red-600" />
-             {currentCouncil.district}, Papua New Guinea
+             {currentOrganization?.district || "Papua New Guinea"}
           </span>
         </div>
       </div>
