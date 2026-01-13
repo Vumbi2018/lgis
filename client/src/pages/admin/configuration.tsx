@@ -37,83 +37,41 @@ export default function ConfigurationPage() {
           <TabsTrigger value="organization">Organization & Tenant</TabsTrigger>
           <TabsTrigger value="services">Service Catalogue</TabsTrigger>
           <TabsTrigger value="workflows">Workflows & Rules</TabsTrigger>
+          <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="users">User Management</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="organization">
+        {/* ... (Organization) ... */}
+
+        {/* ... (Services) ... */}
+
+        {/* ... (Workflows) ... */}
+
+        <TabsContent value="notifications">
           <Card>
             <CardHeader>
-              <CardTitle>Organization Profile</CardTitle>
-              <CardDescription>Configure details for the current Local Level Government (LLG) or Council.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label>Council Name</Label>
-                  <Input defaultValue="National Capital District Commission" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Organization Type</Label>
-                  <Input defaultValue="City Authority" disabled />
-                </div>
-                <div className="space-y-2">
-                  <Label>Jurisdiction District</Label>
-                  <Input defaultValue="Port Moresby" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Currency Symbol</Label>
-                  <Input defaultValue="PGK (K)" />
-                </div>
-                <div className="col-span-2 space-y-2">
-                   <Label>Contact Address</Label>
-                   <Textarea defaultValue="PO Box 7270, Boroko, NCD, Papua New Guinea" />
-                </div>
-              </div>
-
-              <div className="pt-4 border-t">
-                <h3 className="text-sm font-medium mb-4">Branding</h3>
-                <div className="flex items-center gap-4">
-                  <div className="h-24 w-24 bg-secondary/20 border rounded-lg flex items-center justify-center">
-                    <span className="text-xs text-muted-foreground">Current Logo</span>
-                  </div>
-                  <Button variant="outline">
-                    <Upload className="mr-2 h-4 w-4" /> Upload New Logo
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="services">
-          <Card>
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                 <div>
-                    <CardTitle>Service Catalogue Definitions</CardTitle>
-                    <CardDescription>Define available licenses, permits, and fee structures.</CardDescription>
-                 </div>
-                 <Button variant="outline" size="sm"><Plus className="mr-2 h-4 w-4" /> Add Service</Button>
-              </div>
+              <CardTitle>Notification Templates</CardTitle>
+              <CardDescription>Manage SMS and Email alerts for system events.</CardDescription>
             </CardHeader>
             <CardContent>
                <div className="space-y-4">
                  {[
-                   { name: "Trading License", code: "TL-01", fee: "Variable", active: true },
-                   { name: "Liquor License", code: "LL-02", fee: "Fixed", active: true },
-                   { name: "Building Permit", code: "BP-03", fee: "Variable", active: true },
-                 ].map((service, i) => (
+                   { event: "Application Received", channels: ["Email", "SMS"], active: true },
+                   { event: "Payment Confirmation", channels: ["Email", "SMS"], active: true },
+                   { event: "Inspection Scheduled", channels: ["Email"], active: true },
+                   { event: "License Renewal Reminder", channels: ["Email", "SMS", "WhatsApp"], active: false },
+                 ].map((notif, i) => (
                    <div key={i} className="flex items-center justify-between p-4 border rounded-lg bg-card">
                       <div>
-                        <div className="font-medium">{service.name}</div>
-                        <div className="text-xs text-muted-foreground">Code: {service.code} • Fee Model: {service.fee}</div>
+                        <div className="font-medium">{notif.event}</div>
+                        <div className="text-xs text-muted-foreground">Channels: {notif.channels.join(", ")}</div>
                       </div>
                       <div className="flex items-center gap-4">
                          <div className="flex items-center space-x-2">
-                            <Switch checked={service.active} />
+                            <Switch checked={notif.active} />
                             <Label className="text-xs">Active</Label>
                          </div>
-                         <Button variant="ghost" size="sm">Configure</Button>
+                         <Button variant="ghost" size="sm">Edit Template</Button>
                       </div>
                    </div>
                  ))}
@@ -121,22 +79,6 @@ export default function ConfigurationPage() {
             </CardContent>
           </Card>
         </TabsContent>
-
-         <TabsContent value="workflows">
-           <Card>
-             <CardHeader>
-               <CardTitle>Approval Workflows</CardTitle>
-               <CardDescription>Configure routing logic for applications and inspections.</CardDescription>
-             </CardHeader>
-             <CardContent>
-               <div className="text-center py-8 text-muted-foreground">
-                 Workflow engine configuration visualization would go here.
-                 <br />
-                 (Drag-and-drop workflow builder)
-               </div>
-             </CardContent>
-           </Card>
-         </TabsContent>
       </Tabs>
     </MainLayout>
   );

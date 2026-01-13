@@ -1,5 +1,5 @@
 import { MainLayout } from "@/components/layout/main-layout";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,8 +14,8 @@ import {
 } from "@/components/ui/table";
 import { Plus, Search, Filter, MoreHorizontal, MapPin } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-
 import { toast } from "@/hooks/use-toast";
+import { MOCK_ASSETS } from "@/lib/mock-data";
 
 const CITIZENS = [
   { id: "CIT-001", name: "Kila Wari", nin: "NID1002345678", location: "Boroko", status: "Active" },
@@ -59,6 +59,7 @@ export default function RegistryPage() {
           <TabsList>
             <TabsTrigger value="citizens">Citizens</TabsTrigger>
             <TabsTrigger value="businesses">Businesses</TabsTrigger>
+            <TabsTrigger value="assets">Assets & Facilities</TabsTrigger>
           </TabsList>
           
           <div className="flex items-center space-x-2 py-4">
@@ -173,6 +174,50 @@ export default function RegistryPage() {
                               <DropdownMenuItem>Invoices</DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="assets">
+             <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Asset ID</TableHead>
+                      <TableHead>Name / Description</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Condition</TableHead>
+                      <TableHead className="text-right">Value</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {MOCK_ASSETS.map((asset) => (
+                      <TableRow key={asset.id}>
+                        <TableCell className="font-medium">{asset.id}</TableCell>
+                        <TableCell>{asset.name}</TableCell>
+                        <TableCell>{asset.type}</TableCell>
+                         <TableCell>
+                          <div className="flex items-center text-muted-foreground">
+                            <MapPin className="mr-1 h-3 w-3" />
+                            {asset.location}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                           <Badge variant="outline">{asset.condition}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">{asset.value}</TableCell>
+                         <TableCell className="text-right">
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}

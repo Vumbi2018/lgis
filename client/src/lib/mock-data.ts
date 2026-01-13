@@ -1,4 +1,4 @@
-import { User, Shield, FileText, Users, Building2, CreditCard, LayoutDashboard, Settings, ClipboardCheck, AlertTriangle, Sliders } from "lucide-react";
+import { User, Shield, FileText, Users, Building2, CreditCard, LayoutDashboard, Settings, ClipboardCheck, AlertTriangle, Sliders, MessageSquare } from "lucide-react";
 
 export const MOCK_COUNCILS = [
   { id: "1", name: "National Capital District Commission", type: "City", district: "Port Moresby" },
@@ -28,6 +28,7 @@ export const NAV_ITEMS = [
   { title: "Enforcement", url: "/enforcement", icon: AlertTriangle },
   { title: "Properties", url: "/properties", icon: Building2 },
   { title: "Revenue", url: "/revenue", icon: CreditCard },
+  { title: "Public Interaction", url: "/complaints", icon: MessageSquare },
   { title: "Configuration", url: "/configuration", icon: Sliders },
 ];
 
@@ -42,4 +43,16 @@ export const MOCK_PENALTIES = [
   { id: "INF-2025-88", entity: "Lakeside Hotel", type: "Fire Safety Violation", date: "2025-02-11", amount: "PGK 5,000.00", status: "Issued", dueDate: "2025-03-11" },
   { id: "INF-2025-45", entity: "Small Trade Store", type: "Unlicensed Trading", date: "2025-01-20", amount: "PGK 500.00", status: "Overdue", dueDate: "2025-02-05" },
   { id: "INF-2025-12", entity: "XYZ Transport", type: "Illegal Parking", date: "2025-02-01", amount: "PGK 200.00", status: "Paid", dueDate: "2025-02-15" },
+];
+
+export const MOCK_COMPLAINTS = [
+  { id: "CASE-101", subject: "Illegal Dumping at Gerehu", category: "Environmental", date: "2025-02-18", priority: "High", status: "New" },
+  { id: "CASE-102", subject: "Noise Complaint - Nightclub", category: "Liquor Licensing", date: "2025-02-17", priority: "Medium", status: "In Progress" },
+  { id: "CASE-103", subject: "Pothole on Waigani Drive", category: "Infrastructure", date: "2025-02-15", priority: "Low", status: "Resolved" },
+];
+
+export const MOCK_ASSETS = [
+  { id: "AST-001", name: "Boroko Market Stall A1", type: "Market Facility", location: "Boroko", condition: "Good", value: "PGK 15,000" },
+  { id: "AST-002", name: "Konedobu Council Depot", type: "Building", location: "Konedobu", condition: "Fair", value: "PGK 2.5M" },
+  { id: "AST-003", name: "Toyota Hilux Fleet #4", type: "Vehicle", location: "City Hall", condition: "Excellent", value: "PGK 120,000" },
 ];
