@@ -12,31 +12,43 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Plus, Search, Filter, MoreHorizontal, MapPin } from "lucide-react";
+import { Plus, Search, Filter, MoreHorizontal, MapPin, Loader2 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 import { MOCK_ASSETS } from "@/lib/mock-data";
-
-const CITIZENS = [
-  { id: "CIT-001", name: "Kila Wari", nin: "NID1002345678", location: "Boroko", status: "Active" },
-  { id: "CIT-002", name: "Grace Morea", nin: "NID1003456789", location: "Gerehu Stage 2", status: "Active" },
-  { id: "CIT-003", name: "James Kora", nin: "NID1004567890", location: "Waigani", status: "Pending" },
-  { id: "CIT-004", name: "Mary Arua", nin: "NID1005678901", location: "Tokarara", status: "Active" },
-  { id: "CIT-005", name: "John Tau", nin: "NID1006789012", location: "Badili", status: "Suspended" },
-];
-
-const BUSINESSES = [
-  { id: "BUS-001", name: "Papindo Trading", type: "Retail", tin: "5000234567", location: "Waigani Drive", status: "Compliant" },
-  { id: "BUS-002", name: "City Pharmacy Ltd", type: "Medical", tin: "5000234568", location: "Boroko", status: "Compliant" },
-  { id: "BUS-003", name: "Lakeside Hotel", type: "Hospitality", tin: "5000234569", location: "Ggaba", status: "Non-Compliant" },
-];
+import { useQuery } from "@tanstack/react-query";
 
 export default function RegistryPage() {
+  const { data: citizens = [], isLoading: loadingCitizens } = useQuery<any[]>({
+    queryKey: ["/api/citizens"],
+  });
+
+  const { data: businesses = [], isLoading: loadingBusinesses } = useQuery<any[]>({
+    queryKey: ["/api/businesses"],
+  });
+
   const handleNewRegistration = () => {
     toast({
       title: "Registration Form",
       description: "Opening new registration wizard...",
     });
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "active":
+        return <Badge className="bg-emerald-600 hover:bg-emerald-700">Active</Badge>;
+      case "pending":
+        return <Badge variant="secondary">Pending</Badge>;
+      case "suspended":
+        return <Badge variant="destructive">Suspended</Badge>;
+      case "compliant":
+        return <Badge variant="outline" className="border-emerald-500 text-emerald-600">Compliant</Badge>;
+      case "non_compliant":
+        return <Badge variant="destructive">Non-Compliant</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
   };
 
   return (
@@ -47,7 +59,7 @@ export default function RegistryPage() {
           <p className="text-muted-foreground">Manage citizen and business records.</p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button onClick={handleNewRegistration}>
+          <Button onClick={handleNewRegistration} data-testid="button-new-registration">
             <Plus className="mr-2 h-4 w-4" />
             New Registration
           </Button>
@@ -57,9 +69,9 @@ export default function RegistryPage() {
       <div className="pt-6">
         <Tabs defaultValue="citizens" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="citizens">Citizens</TabsTrigger>
-            <TabsTrigger value="businesses">Businesses</TabsTrigger>
-            <TabsTrigger value="assets">Assets & Facilities</TabsTrigger>
+            <TabsTrigger value="citizens" data-testid="tab-citizens">Citizens ({citizens.length})</TabsTrigger>
+            <TabsTrigger value="businesses" data-testid="tab-businesses">Businesses ({businesses.length})</TabsTrigger>
+            <TabsTrigger value="assets" data-testid="tab-assets">Assets & Facilities</TabsTrigger>
           </TabsList>
           
           <div className="flex items-center space-x-2 py-4">
@@ -68,9 +80,10 @@ export default function RegistryPage() {
               <Input
                 placeholder="Search by Name, ID, or TIN..."
                 className="pl-9 w-full md:w-[300px]"
+                data-testid="input-search"
               />
             </div>
-            <Button variant="outline" size="icon">
+            <Button variant="outline" size="icon" data-testid="button-filter">
               <Filter className="h-4 w-4" />
             </Button>
           </div>
@@ -78,52 +91,61 @@ export default function RegistryPage() {
           <TabsContent value="citizens">
             <Card>
               <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>System ID</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>NID Number</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {CITIZENS.map((citizen) => (
-                      <TableRow key={citizen.id}>
-                        <TableCell className="font-medium">{citizen.id}</TableCell>
-                        <TableCell>{citizen.name}</TableCell>
-                        <TableCell>{citizen.nin}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center text-muted-foreground">
-                            <MapPin className="mr-1 h-3 w-3" />
-                            {citizen.location}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={citizen.status === "Active" ? "default" : "secondary"} className={citizen.status === "Active" ? "bg-emerald-600 hover:bg-emerald-700" : ""}>
-                            {citizen.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>View Details</DropdownMenuItem>
-                              <DropdownMenuItem>Edit Record</DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">Deactivate</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
+                {loadingCitizens ? (
+                  <div className="flex items-center justify-center p-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <span className="ml-2">Loading citizens...</span>
+                  </div>
+                ) : citizens.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    No citizens registered yet. Click "New Registration" to add one.
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Citizen ID</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>NID Number</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {citizens.map((citizen) => (
+                        <TableRow key={citizen.id} data-testid={`row-citizen-${citizen.id}`}>
+                          <TableCell className="font-medium font-mono text-xs">{citizen.id.slice(0, 8)}...</TableCell>
+                          <TableCell className="font-medium">{citizen.fullName}</TableCell>
+                          <TableCell>{citizen.nidNumber || "—"}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center text-muted-foreground">
+                              <MapPin className="mr-1 h-3 w-3" />
+                              {citizen.district || citizen.village}, {citizen.province}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className="bg-emerald-600 hover:bg-emerald-700">Active</Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" data-testid={`button-actions-citizen-${citizen.id}`}>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem>View Details</DropdownMenuItem>
+                                <DropdownMenuItem>Edit Record</DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive">Deactivate</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -131,54 +153,65 @@ export default function RegistryPage() {
           <TabsContent value="businesses">
              <Card>
               <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Business ID</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>TIN</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {BUSINESSES.map((biz) => (
-                      <TableRow key={biz.id}>
-                        <TableCell className="font-medium">{biz.id}</TableCell>
-                        <TableCell>{biz.name}</TableCell>
-                        <TableCell>{biz.type}</TableCell>
-                        <TableCell>{biz.tin}</TableCell>
-                         <TableCell>
-                          <div className="flex items-center text-muted-foreground">
-                            <MapPin className="mr-1 h-3 w-3" />
-                            {biz.location}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                           <Badge variant={biz.status === "Compliant" ? "outline" : "destructive"} className={biz.status === "Compliant" ? "border-emerald-500 text-emerald-600" : ""}>
-                            {biz.status}
-                          </Badge>
-                        </TableCell>
-                         <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>View Profile</DropdownMenuItem>
-                              <DropdownMenuItem>Assessment History</DropdownMenuItem>
-                              <DropdownMenuItem>Invoices</DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
+                {loadingBusinesses ? (
+                  <div className="flex items-center justify-center p-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <span className="ml-2">Loading businesses...</span>
+                  </div>
+                ) : businesses.length === 0 ? (
+                  <div className="p-8 text-center text-muted-foreground">
+                    No businesses registered yet.
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Business ID</TableHead>
+                        <TableHead>Business Name</TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>TIN</TableHead>
+                        <TableHead>Location</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {businesses.map((biz) => (
+                        <TableRow key={biz.id} data-testid={`row-business-${biz.id}`}>
+                          <TableCell className="font-medium font-mono text-xs">{biz.id.slice(0, 8)}...</TableCell>
+                          <TableCell className="font-medium">{biz.businessName}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{biz.businessType || "General"}</Badge>
+                          </TableCell>
+                          <TableCell>{biz.tinNumber || "—"}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center text-muted-foreground">
+                              <MapPin className="mr-1 h-3 w-3" />
+                              Sect {biz.section || "—"} / Lot {biz.lot || "—"}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(biz.status || "active")}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" data-testid={`button-actions-business-${biz.id}`}>
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem>View Profile</DropdownMenuItem>
+                                <DropdownMenuItem>Assessment History</DropdownMenuItem>
+                                <DropdownMenuItem>Invoices</DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -200,7 +233,7 @@ export default function RegistryPage() {
                   </TableHeader>
                   <TableBody>
                     {MOCK_ASSETS.map((asset) => (
-                      <TableRow key={asset.id}>
+                      <TableRow key={asset.id} data-testid={`row-asset-${asset.id}`}>
                         <TableCell className="font-medium">{asset.id}</TableCell>
                         <TableCell>{asset.name}</TableCell>
                         <TableCell>{asset.type}</TableCell>
