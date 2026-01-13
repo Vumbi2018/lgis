@@ -10,6 +10,8 @@ import RegistryPage from "@/pages/registry/index";
 import ServicesPage from "@/pages/services/index";
 import LicensingPage from "@/pages/licensing/index";
 import ApplicationWizard from "@/pages/licensing/apply";
+import PropertiesPage from "@/pages/properties/index";
+import PropertyDetailsPage from "@/pages/properties/property-details";
 
 function Router() {
   return (
@@ -20,6 +22,8 @@ function Router() {
       <Route path="/services" component={ServicesPage} />
       <Route path="/licensing" component={LicensingPage} />
       <Route path="/licensing/apply/:id" component={ApplicationWizard} />
+      <Route path="/properties" component={PropertiesPage} />
+      <Route path="/properties/:id" component={PropertyDetailsPage} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>
