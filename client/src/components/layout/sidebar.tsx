@@ -23,18 +23,18 @@ export function Sidebar() {
           {NAV_ITEMS.map((item) => {
             const isActive = location === item.url || location.startsWith(item.url + "/");
             return (
-              <Link key={item.url} href={item.url}>
-                <a
-                  className={cn(
-                    "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all duration-200",
-                    isActive
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md translate-x-1"
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:pl-4"
-                  )}
-                >
-                  <item.icon className={cn("h-4 w-4", isActive ? "text-sidebar-primary-foreground" : "text-sidebar-foreground/70")} />
-                  {item.title}
-                </a>
+              <Link
+                key={item.url}
+                href={item.url}
+                className={cn(
+                  "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-all duration-200",
+                  isActive
+                    ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md translate-x-1"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:pl-4"
+                )}
+              >
+                <item.icon className={cn("h-4 w-4", isActive ? "text-sidebar-primary-foreground" : "text-sidebar-foreground/70")} />
+                {item.title}
               </Link>
             );
           })}

@@ -1,0 +1,290 @@
+LGIS MODULE DEPENDENCY DIAGRAM
+
+(Authoritative – Forward-Looking)
+
+1. LEGEND
+
+→ = Hard dependency (must exist first)
+
+⇢ = Soft / optional dependency
+
+[ ] = Module
+
+{ } = External system
+
+(*) = Cross-cutting module (used everywhere)
+
+2. TIER 0 — PLATFORM FOUNDATION (NON-NEGOTIABLE)
+
+These modules must be implemented first.
+Every other module depends on them.
+
+[Council & Jurisdiction Management]
+        →
+[User Identity & Authentication]
+        →
+[RBAC & LBAC Engine]
+        →
+[Audit & Compliance Logging]
+
+
+Explanation
+
+Council scoping underpins multi-tenancy
+
+RBAC/LBAC + RLS enforce legal isolation
+
+Audit logs provide legal defensibility
+
+📌 No business logic should exist without this layer
+(World Bank, 2020; OWASP, 2023).
+
+3. TIER 1 — CORE REGISTRIES (SYSTEM OF RECORD)
+
+These eliminate duplication and anchor all transactions.
+
+[Council & Jurisdiction Management]
+        →
+[Citizen Registry]
+        →
+[Business & Enterprise Registry]
+        →
+[Property & Premise Registry]
+
+
+All downstream modules consume, but do not modify, registry data.
+
+4. TIER 2 — CONFIGURATION & RULES ENGINE
+
+This tier defines what services exist and how they are processed.
+
+[RBAC & LBAC Engine]
+        →
+[Service Catalogue & Licence Taxonomy]
+        →
+[Fee & Tariff Management]
+        →
+[Workflow & SLA Engine]
+
+
+Key rule
+No licence, inspection, or payment may exist without:
+
+A service definition
+
+A fee rule
+
+A workflow
+
+This is what makes LGIS future-proof.
+
+5. TIER 3 — TRANSACTIONAL CORE (DIGITAL FORMS ENGINE)
+
+This tier replaces all manual forms you uploaded.
+
+[Citizen Registry]
+[Business Registry]
+[Property Registry]
+[Service Catalogue]
+[Workflow Engine]
+        →
+[Dynamic Application Form Engine]
+        →
+[Service Requests & Applications]
+
+
+Every uploaded checklist maps to this tier.
+
+📌 This is where liquor, fuel, food, industrial, retail, and trade licences converge.
+
+6. TIER 4 — COMPLIANCE, INSPECTION & ENFORCEMENT
+
+These modules operationalise regulation.
+
+[Service Requests]
+        →
+[Inspection Management]
+        →
+[Mobile Field Inspection App]
+        →
+[Compliance Findings]
+        →
+[Enforcement & Notices]
+
+
+Optional branch:
+
+[Inspection Management]
+        ⇢
+[Risk Scoring Engine]   (future)
+
+
+This tier is what most councils lack digitally and where LGIS creates the most value.
+
+7. TIER 5 — REVENUE & FINANCIAL OPERATIONS
+
+Financial modules depend on approved regulatory actions, not vice-versa.
+
+[Service Requests]
+        →
+[Fee & Tariff Management]
+        →
+[Billing & Invoicing]
+        →
+[Payments & Receipting]
+        →
+[Revenue Reconciliation]
+
+
+Important rule:
+
+No payment without a bill, no bill without a service, no service without approval.
+
+This aligns with public financial management best practice (OECD, 2019).
+
+8. TIER 6 — LICENSING & LIFE-CYCLE MANAGEMENT
+
+Licences are outputs, not inputs.
+
+[Approved Service Request]
+        →
+[Licence Issuance]
+        →
+[Licence Lifecycle Management]
+        ├─→ Renewal
+        ├─→ Change of Management
+        ├─→ Transfer / Relocation
+        ├─→ Suspension
+        └─→ Revocation
+
+
+All lifecycle actions loop back through:
+
+[Workflow Engine] → [Audit Logs]
+
+9. TIER 7 — PUBLIC INTERACTION & GOVERNANCE
+
+These modules improve transparency and accountability.
+
+[Service Requests]
+        →
+[Complaints & Public Submissions]
+        →
+[Appeals & Review Boards]
+
+
+Optional but strategic:
+
+[Open Data & Transparency Portal]
+
+
+(UN, 2022).
+
+10. TIER 8 — COMMUNICATION & ENGAGEMENT
+
+These are cross-cutting.
+
+(*) [Notification & Messaging Engine]
+        ├─→ SMS
+        ├─→ Email
+        ├─→ WhatsApp
+
+
+Used by:
+
+Applications
+
+Inspections
+
+Payments
+
+Renewals
+
+Enforcement
+
+11. TIER 9 — ANALYTICS, PLANNING & OVERSIGHT
+
+These modules never write data, only read.
+
+[Audit Logs]
+[Service Requests]
+[Payments]
+[Inspections]
+        →
+[Operational Dashboards]
+        →
+[Revenue & Compliance Analytics]
+        →
+[GIS & Risk Mapping]
+
+
+This tier enables:
+
+Revenue forecasting
+
+High-risk business targeting
+
+Policy evaluation
+
+(World Bank, 2020).
+
+12. TIER 10 — INTEROPERABILITY (STRATEGIC, OPTIONAL)
+[LGIS Core]
+        ⇢
+{National ID System}
+        ⇢
+{Business Registry / IPA}
+        ⇢
+{IFMIS / Treasury}
+        ⇢
+{Tax Authority}
+        ⇢
+{Sector Regulators}
+
+
+These integrations never block core LGIS operations.
+
+13. COMPLETE DEPENDENCY SUMMARY (ONE-PAGE VIEW)
+FOUNDATION
+ └─ Council → Identity → RBAC/LBAC → Audit
+
+REGISTRIES
+ └─ Citizen | Business | Property
+
+CONFIGURATION
+ └─ Services → Fees → Workflows
+
+TRANSACTIONS
+ └─ Forms → Requests
+
+COMPLIANCE
+ └─ Inspections → Enforcement
+
+FINANCE
+ └─ Billing → Payments → Reconciliation
+
+LICENSING
+ └─ Issuance → Lifecycle
+
+PUBLIC
+ └─ Complaints → Appeals
+
+CROSS-CUTTING
+ └─ Notifications | Analytics | GIS
+
+INTEGRATION (OPTIONAL)
+ └─ National Systems
+
+14. WHY THIS DIAGRAM IS IMPORTANT
+
+This dependency structure ensures that LGIS:
+
+Scales from one LLG to a capital city
+
+Supports any future licence type
+
+Prevents revenue leakage
+
+Survives policy and by-law changes
+
+Can be implemented incrementally
