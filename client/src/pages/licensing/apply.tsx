@@ -92,7 +92,7 @@ export default function ApplicationWizard() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="bizName">Business Name (As Registered)</Label>
-                    <Input id="bizName" placeholder="e.g. Kampala General Hardware Ltd" />
+                    <Input id="bizName" placeholder="e.g. Papindo Trading Ltd" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="tin">Tax Identification Number (TIN)</Label>
@@ -104,11 +104,11 @@ export default function ApplicationWizard() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone Number</Label>
-                    <Input id="phone" placeholder="+256..." />
+                    <Input id="phone" placeholder="+675..." />
                   </div>
                   <div className="col-span-2 space-y-2">
                     <Label htmlFor="address">Physical Address of Premises</Label>
-                    <Textarea id="address" placeholder="Plot No, Street, Division..." />
+                    <Textarea id="address" placeholder="Section, Lot, Suburb, District..." />
                   </div>
                 </div>
               </CardContent>
@@ -188,7 +188,7 @@ export default function ApplicationWizard() {
                     </div>
                     <div>
                       <dt className="text-muted-foreground">Application Fee</dt>
-                      <dd className="font-medium">UGX 50,000</dd>
+                      <dd className="font-medium">PGK 50.00</dd>
                     </div>
                   </dl>
                 </div>

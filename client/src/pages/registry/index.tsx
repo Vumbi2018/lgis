@@ -16,17 +16,17 @@ import { Plus, Search, Filter, MoreHorizontal, MapPin } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const CITIZENS = [
-  { id: "CIT-001", name: "Opio David", nin: "CM90012345678", location: "Nakawa Division", status: "Active" },
-  { id: "CIT-002", name: "Namukasa Grace", nin: "CF88012345678", location: "Makindye Division", status: "Active" },
-  { id: "CIT-003", name: "Okello James", nin: "CM75012345678", location: "Central Division", status: "Pending" },
-  { id: "CIT-004", name: "Apolot Mary", nin: "CF92012345678", location: "Rubaga Division", status: "Active" },
-  { id: "CIT-005", name: "Musoke John", nin: "CM85012345678", location: "Kawempe Division", status: "Suspended" },
+  { id: "CIT-001", name: "Kila Wari", nin: "NID1002345678", location: "Boroko", status: "Active" },
+  { id: "CIT-002", name: "Grace Morea", nin: "NID1003456789", location: "Gerehu Stage 2", status: "Active" },
+  { id: "CIT-003", name: "James Kora", nin: "NID1004567890", location: "Waigani", status: "Pending" },
+  { id: "CIT-004", name: "Mary Arua", nin: "NID1005678901", location: "Tokarara", status: "Active" },
+  { id: "CIT-005", name: "John Tau", nin: "NID1006789012", location: "Badili", status: "Suspended" },
 ];
 
 const BUSINESSES = [
-  { id: "BUS-001", name: "Kampala General Hardware", type: "Retail", tin: "1000234567", location: "Downtown", status: "Compliant" },
-  { id: "BUS-002", name: "City Pharmacy Ltd", type: "Medical", tin: "1000234568", location: "Wandegeya", status: "Compliant" },
-  { id: "BUS-003", name: "Lakeside Restaurant", type: "Hospitality", tin: "1000234569", location: "Ggaba", status: "Non-Compliant" },
+  { id: "BUS-001", name: "Papindo Trading", type: "Retail", tin: "5000234567", location: "Waigani Drive", status: "Compliant" },
+  { id: "BUS-002", name: "City Pharmacy Ltd", type: "Medical", tin: "5000234568", location: "Boroko", status: "Compliant" },
+  { id: "BUS-003", name: "Lakeside Hotel", type: "Hospitality", tin: "5000234569", location: "Ggaba", status: "Non-Compliant" },
 ];
 
 export default function RegistryPage() {
@@ -73,7 +73,7 @@ export default function RegistryPage() {
                     <TableRow>
                       <TableHead>System ID</TableHead>
                       <TableHead>Name</TableHead>
-                      <TableHead>NIN</TableHead>
+                      <TableHead>NID Number</TableHead>
                       <TableHead>Location</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
