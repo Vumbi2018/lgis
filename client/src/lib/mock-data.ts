@@ -1,4 +1,4 @@
-import { User, Shield, FileText, Users, Building2, CreditCard, LayoutDashboard, Settings, Menu, Bell, Search, LogOut } from "lucide-react";
+import { User, Shield, FileText, Users, Building2, CreditCard, LayoutDashboard, Settings, ClipboardCheck, AlertTriangle, Sliders } from "lucide-react";
 
 export const MOCK_COUNCILS = [
   { id: "1", name: "National Capital District Commission", type: "City", district: "Port Moresby" },
@@ -24,7 +24,22 @@ export const NAV_ITEMS = [
   { title: "Registry", url: "/registry", icon: Users },
   { title: "Services", url: "/services", icon: FileText },
   { title: "Licensing", url: "/licensing", icon: Shield },
+  { title: "Inspections", url: "/inspections", icon: ClipboardCheck },
+  { title: "Enforcement", url: "/enforcement", icon: AlertTriangle },
   { title: "Properties", url: "/properties", icon: Building2 },
   { title: "Revenue", url: "/revenue", icon: CreditCard },
-  { title: "Settings", url: "/settings", icon: Settings },
+  { title: "Configuration", url: "/configuration", icon: Sliders },
+];
+
+export const MOCK_INSPECTIONS = [
+  { id: "INS-2025-001", entity: "Papindo Trading", type: "Health & Safety", date: "2025-02-15", inspector: "Officer Kila", status: "Scheduled", risk: "Medium" },
+  { id: "INS-2025-002", entity: "City Pharmacy Waigani", type: "License Compliance", date: "2025-02-14", inspector: "Officer John", status: "Completed", result: "Pass", risk: "Low" },
+  { id: "INS-2025-003", entity: "Lakeside Hotel", type: "Fire Safety", date: "2025-02-10", inspector: "Officer Kila", status: "Failed", result: "Critical Violations", risk: "High" },
+  { id: "INS-2025-004", entity: "Big Rooster Boroko", type: "Food Hygiene", date: "2025-02-16", inspector: "Unassigned", status: "Pending", risk: "High" },
+];
+
+export const MOCK_PENALTIES = [
+  { id: "INF-2025-88", entity: "Lakeside Hotel", type: "Fire Safety Violation", date: "2025-02-11", amount: "PGK 5,000.00", status: "Issued", dueDate: "2025-03-11" },
+  { id: "INF-2025-45", entity: "Small Trade Store", type: "Unlicensed Trading", date: "2025-01-20", amount: "PGK 500.00", status: "Overdue", dueDate: "2025-02-05" },
+  { id: "INF-2025-12", entity: "XYZ Transport", type: "Illegal Parking", date: "2025-02-01", amount: "PGK 200.00", status: "Paid", dueDate: "2025-02-15" },
 ];

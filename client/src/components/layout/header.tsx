@@ -1,4 +1,4 @@
-import { Bell, Search, Menu, User, MapPin } from "lucide-react";
+import { Bell, Search, Menu, User, MapPin, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,15 +9,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MOCK_USERS } from "@/lib/mock-data";
+import { MOCK_USERS, MOCK_COUNCILS } from "@/lib/mock-data";
 import { useLocation } from "wouter";
+import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
 
 export function Header() {
   const user = MOCK_USERS[0];
   const [location, setLocation] = useLocation();
+  const [currentCouncil, setCurrentCouncil] = useState(MOCK_COUNCILS[0]);
 
   const handleLogout = () => {
     setLocation("/");
+  };
+
+  const handleCouncilSwitch = (council: typeof MOCK_COUNCILS[0]) => {
+    setCurrentCouncil(council);
+    toast({
+      title: "Organization Switched",
+      description: `Active context changed to ${council.name}`,
+    });
   };
 
   return (
@@ -26,12 +37,31 @@ export function Header() {
         <Button variant="ghost" size="icon" className="md:hidden">
           <Menu className="h-5 w-5" />
         </Button>
-        <div className="flex flex-col md:flex-row md:items-center text-sm">
-          <span className="font-bold text-foreground text-lg tracking-tight">National Capital District Commission</span>
-          <span className="hidden md:inline mx-2 text-muted-foreground">|</span>
-          <span className="text-xs md:text-sm text-muted-foreground flex items-center">
+        <div className="flex flex-col">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-auto p-0 hover:bg-transparent font-normal flex items-center gap-2">
+                <span className="font-bold text-foreground text-lg tracking-tight text-left">{currentCouncil.name}</span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-[300px]">
+              <DropdownMenuLabel>Switch Organization</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {MOCK_COUNCILS.map((council) => (
+                <DropdownMenuItem key={council.id} onClick={() => handleCouncilSwitch(council)} className="cursor-pointer">
+                  <div className="flex flex-col">
+                    <span className="font-medium">{council.name}</span>
+                    <span className="text-xs text-muted-foreground">{council.district}</span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          <span className="text-xs text-muted-foreground flex items-center mt-0.5">
              <MapPin className="h-3 w-3 mr-1 text-red-600" />
-             Port Moresby, Papua New Guinea
+             {currentCouncil.district}, Papua New Guinea
           </span>
         </div>
       </div>

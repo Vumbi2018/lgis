@@ -14,6 +14,9 @@ import PropertiesPage from "@/pages/properties/index";
 import PropertyDetailsPage from "@/pages/properties/property-details";
 import RevenuePage from "@/pages/revenue/index";
 import SettingsPage from "@/pages/settings/index";
+import InspectionsPage from "@/pages/inspections/index";
+import EnforcementPage from "@/pages/enforcement/index";
+import ConfigurationPage from "@/pages/admin/configuration";
 
 function Router() {
   return (
@@ -24,10 +27,12 @@ function Router() {
       <Route path="/services" component={ServicesPage} />
       <Route path="/licensing" component={LicensingPage} />
       <Route path="/licensing/apply/:id" component={ApplicationWizard} />
+      <Route path="/inspections" component={InspectionsPage} />
+      <Route path="/enforcement" component={EnforcementPage} />
       <Route path="/properties" component={PropertiesPage} />
       <Route path="/properties/:id" component={PropertyDetailsPage} />
       <Route path="/revenue" component={RevenuePage} />
-      <Route path="/settings" component={SettingsPage} />
+      <Route path="/configuration" component={ConfigurationPage} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>

@@ -1,0 +1,206 @@
+COMPLETE, FORWARD-LOOKING LGIS MODULE LIST
+
+Below is the authoritative, future-proof module inventory you should plan to implement.
+This is written at enterprise / donor / national scale.
+
+1. Core Platform Modules (Foundational)
+
+These must be implemented first.
+
+Council & Jurisdiction Management
+
+City / municipal / district / LLG setup
+
+Wards, zones, inspection areas
+
+User Management & Identity
+
+Staff users
+
+External users (citizens, businesses)
+
+MFA support
+
+RBAC & LBAC Engine
+
+Role-based access
+
+Location-based access
+
+Council isolation (RLS-backed)
+
+Audit & Compliance Logging
+
+Immutable logs
+
+Evidence chain
+
+Legal defensibility
+
+2. Registry Modules (Single Source of Truth)
+
+Citizen Registry
+
+Business & Enterprise Registry
+
+Property & Premise Registry
+
+Asset & Facility Registry (Council-owned)
+
+These eliminate repeated data entry across all licence types.
+
+3. Licensing & Permits Core (Major Workhorse)
+
+Service Catalogue & Licence Type Configuration
+
+Liquor
+
+Commercial
+
+Industrial
+
+Temporary / event-based
+
+Dynamic Application Form Engine
+
+Conditional sections
+
+Regulator-driven requirements
+
+Document validation rules
+
+Change of Management / Ownership Module
+
+Licence Renewal & Expiry Management
+
+Licence Transfer / Relocation
+
+Temporary & Event Licensing
+
+4. Compliance, Inspection & Enforcement (High Value)
+
+Inspection Management Module
+
+Health
+
+Safety
+
+Planning
+
+Environmental
+
+Liquor compliance
+
+Mobile Field Inspection App
+
+Offline mode
+
+GPS tagging
+
+Photo/video evidence
+
+Non-Compliance & Corrective Action Tracking
+
+Enforcement & Notices Module
+
+Improvement notices
+
+Suspension
+
+Revocation
+
+Prosecution referrals
+
+5. Revenue & Financial Modules
+
+Fee & Tariff Management
+
+Billing & Invoicing
+
+Multi-Channel Payments
+
+Cards
+
+Bank
+
+Cash
+
+Cheque
+
+Mobile money (future)
+
+Receipting & Reconciliation
+
+Revenue Leakage Detection (Forward-Looking)
+
+6. Sector-Specific Compliance Extensions (Configurable)
+
+Food Safety & HACCP Module
+
+Dangerous Goods & Industrial Safety Module
+
+Liquor Regulation Module
+
+Environmental Health Module
+
+Trade & Commerce Regulation Module
+
+Second-Hand Dealers Monitoring Module
+
+These are configuration-driven, not hard-coded.
+
+7. Complaints, Objections & Public Interaction
+
+Citizen Complaints & Service Requests
+
+Public Objections to Licence Applications
+
+Appeals & Review Board Module
+
+Whistle-blower / Anonymous Reporting (Future)
+
+8. Notifications & Communications
+
+SMS / Email / WhatsApp Notifications
+
+Licence Status Alerts
+
+Inspection Scheduling Alerts
+
+Payment & Renewal Reminders
+
+9. Analytics, Planning & Governance
+
+Operational Dashboards
+
+Revenue & Compliance Analytics
+
+Risk Scoring (Forward-Looking)
+
+GIS-Based Licensing Maps
+
+Open Data & Transparency Portal (Optional)
+
+10. Interoperability & National Integration (Strategic)
+
+External Regulator Integration Gateway
+
+National ID / Business Registry Sync
+
+IFMIS / Treasury Integration
+
+Customs / Tax Authority Integration
+
+National Digital Government Platforms
+
+11. Platform Sustainability (Often Forgotten, Very Important)
+
+Configuration & No-Code Admin Module
+
+Data Migration & Legacy Capture
+
+System Monitoring & Health
+
+Backup, DR & Archival
+
+Policy, By-law & Regulatory Versioning
