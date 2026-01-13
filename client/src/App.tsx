@@ -18,6 +18,9 @@ import InspectionsPage from "@/pages/inspections/index";
 import EnforcementPage from "@/pages/enforcement/index";
 import ConfigurationPage from "@/pages/admin/configuration";
 import ComplaintsPage from "@/pages/complaints/index";
+import AuditLogsPage from "@/pages/admin/audit-logs";
+import GISPage from "@/pages/gis/index";
+import IntegrationsPage from "@/pages/admin/integrations";
 
 function Router() {
   return (
@@ -35,6 +38,9 @@ function Router() {
       <Route path="/properties/:id" component={PropertyDetailsPage} />
       <Route path="/revenue" component={RevenuePage} />
       <Route path="/configuration" component={ConfigurationPage} />
+      <Route path="/audit" component={AuditLogsPage} />
+      <Route path="/gis" component={GISPage} />
+      <Route path="/integrations" component={IntegrationsPage} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
     </Switch>

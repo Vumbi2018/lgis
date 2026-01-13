@@ -12,8 +12,9 @@ import {
   TableHeader, 
   TableRow 
 } from "@/components/ui/table";
-import { Search, Filter, Download, DollarSign, TrendingUp, CreditCard, Calendar, FileText } from "lucide-react";
+import { Search, Filter, Download, DollarSign, TrendingUp, CreditCard, Calendar, FileText, Receipt, Send, Plus } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { MOCK_INVOICES } from "@/lib/mock-data";
 
 const TRANSACTIONS = [
   { id: "TRX-8892", date: "2026-01-13", payer: "Steamships Trading", type: "Property Rates", amount: "12,500.00", status: "Completed", method: "Bank Transfer" },
@@ -45,6 +46,7 @@ const COLORS = ["#000000", "#FFD700", "#EF4444", "#3B82F6", "#10B981"];
 export default function RevenuePage() {
   return (
     <MainLayout>
+      {/* ... existing header ... */}
       <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-black">Revenue Management</h2>
@@ -62,165 +64,228 @@ export default function RevenuePage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4 mb-6">
-        <Card className="shadow-sm">
-           <CardContent className="pt-6">
-             <div className="flex items-center justify-between mb-2">
-               <p className="text-sm font-medium text-muted-foreground">Total Collected</p>
-               <DollarSign className="h-4 w-4 text-green-600" />
-             </div>
-             <div className="text-2xl font-bold">PGK 4.2M</div>
-             <p className="text-xs text-green-600 flex items-center mt-1">
-               <TrendingUp className="h-3 w-3 mr-1" /> +12% vs last month
-             </p>
-           </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-           <CardContent className="pt-6">
-             <div className="flex items-center justify-between mb-2">
-               <p className="text-sm font-medium text-muted-foreground">Outstanding</p>
-               <FileText className="h-4 w-4 text-red-600" />
-             </div>
-             <div className="text-2xl font-bold">PGK 1.8M</div>
-             <p className="text-xs text-red-600 mt-1">Arrears {'>'} 90 days</p>
-           </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-           <CardContent className="pt-6">
-             <div className="flex items-center justify-between mb-2">
-               <p className="text-sm font-medium text-muted-foreground">Daily Average</p>
-               <ActivityIcon className="h-4 w-4 text-blue-600" />
-             </div>
-             <div className="text-2xl font-bold">PGK 45K</div>
-             <p className="text-xs text-muted-foreground mt-1">Based on last 30 days</p>
-           </CardContent>
-        </Card>
-        <Card className="shadow-sm">
-           <CardContent className="pt-6">
-             <div className="flex items-center justify-between mb-2">
-               <p className="text-sm font-medium text-muted-foreground">Digital Payments</p>
-               <CreditCard className="h-4 w-4 text-yellow-600" />
-             </div>
-             <div className="text-2xl font-bold">68%</div>
-             <p className="text-xs text-muted-foreground mt-1">adoption rate</p>
-           </CardContent>
-        </Card>
-      </div>
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="invoices">Billing & Invoices</TabsTrigger>
+          <TabsTrigger value="transactions">Transactions</TabsTrigger>
+        </TabsList>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7 mb-6">
-        <Card className="col-span-4 shadow-sm">
-          <CardHeader>
-            <CardTitle>Revenue Trends</CardTitle>
-            <CardDescription>Monthly collection performance.</CardDescription>
-          </CardHeader>
-          <CardContent className="pl-2">
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={MONTHLY_REVENUE}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                  <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `K${value/1000}k`} />
-                  <Tooltip 
-                    formatter={(value) => `PGK ${value.toLocaleString()}`}
-                    contentStyle={{ borderRadius: "8px", border: "1px solid #eee" }}
-                  />
-                  <Bar dataKey="amount" fill="#000" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="col-span-3 shadow-sm">
-          <CardHeader>
-            <CardTitle>Sources Breakdown</CardTitle>
-            <CardDescription>Revenue distribution by category.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={REVENUE_BY_SOURCE}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                  >
-                    {REVENUE_BY_SOURCE.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value) => `PGK ${value.toLocaleString()}`} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-              {REVENUE_BY_SOURCE.map((item, index) => (
-                <div key={item.name} className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                  <span className="truncate">{item.name}</span>
+        <TabsContent value="overview">
+          {/* ... existing dashboard grid ... */}
+          <div className="grid gap-4 md:grid-cols-4 mb-6">
+            <Card className="shadow-sm">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-muted-foreground">Total Collected</p>
+                  <DollarSign className="h-4 w-4 text-green-600" />
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Recent Transactions</CardTitle>
-            <div className="flex items-center gap-2">
-              <div className="relative w-64">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search receipt or payer..." className="pl-9" />
-              </div>
-              <Button variant="outline" size="icon">
-                <Filter className="h-4 w-4" />
-              </Button>
-            </div>
+                <div className="text-2xl font-bold">PGK 4.2M</div>
+                <p className="text-xs text-green-600 flex items-center mt-1">
+                  <TrendingUp className="h-3 w-3 mr-1" /> +12% vs last month
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-muted-foreground">Outstanding</p>
+                  <FileText className="h-4 w-4 text-red-600" />
+                </div>
+                <div className="text-2xl font-bold">PGK 1.8M</div>
+                <p className="text-xs text-red-600 mt-1">Arrears {'>'} 90 days</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-muted-foreground">Daily Average</p>
+                  <ActivityIcon className="h-4 w-4 text-blue-600" />
+                </div>
+                <div className="text-2xl font-bold">PGK 45K</div>
+                <p className="text-xs text-muted-foreground mt-1">Based on last 30 days</p>
+              </CardContent>
+            </Card>
+            <Card className="shadow-sm">
+              <CardContent className="pt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-muted-foreground">Digital Payments</p>
+                  <CreditCard className="h-4 w-4 text-yellow-600" />
+                </div>
+                <div className="text-2xl font-bold">68%</div>
+                <p className="text-xs text-muted-foreground mt-1">adoption rate</p>
+              </CardContent>
+            </Card>
           </div>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Receipt ID</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Payer</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Method</TableHead>
-                <TableHead>Amount (PGK)</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {TRANSACTIONS.map((trx) => (
-                <TableRow key={trx.id}>
-                  <TableCell className="font-medium">{trx.id}</TableCell>
-                  <TableCell>{trx.date}</TableCell>
-                  <TableCell>{trx.payer}</TableCell>
-                  <TableCell>{trx.type}</TableCell>
-                  <TableCell>{trx.method}</TableCell>
-                  <TableCell className="font-bold">{trx.amount}</TableCell>
-                  <TableCell>
-                    <Badge variant={trx.status === "Completed" ? "default" : "secondary"} className={trx.status === "Completed" ? "bg-green-600" : ""}>
-                      {trx.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm">View</Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7 mb-6">
+             {/* ... existing charts ... */}
+             <Card className="col-span-4 shadow-sm">
+              <CardHeader>
+                <CardTitle>Revenue Trends</CardTitle>
+                <CardDescription>Monthly collection performance.</CardDescription>
+              </CardHeader>
+              <CardContent className="pl-2">
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={MONTHLY_REVENUE}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
+                      <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `K${value/1000}k`} />
+                      <Tooltip 
+                        formatter={(value) => `PGK ${value.toLocaleString()}`}
+                        contentStyle={{ borderRadius: "8px", border: "1px solid #eee" }}
+                      />
+                      <Bar dataKey="amount" fill="#000" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="col-span-3 shadow-sm">
+              <CardHeader>
+                <CardTitle>Sources Breakdown</CardTitle>
+                <CardDescription>Revenue distribution by category.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={REVENUE_BY_SOURCE}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={100}
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        {REVENUE_BY_SOURCE.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip formatter={(value) => `PGK ${value.toLocaleString()}`} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                  {REVENUE_BY_SOURCE.map((item, index) => (
+                    <div key={item.name} className="flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                      <span className="truncate">{item.name}</span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="invoices">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <div>
+                   <CardTitle>Invoices & Billing</CardTitle>
+                   <CardDescription>Manage outgoing bills and payment requests.</CardDescription>
+                </div>
+                <Button>
+                   <Plus className="mr-2 h-4 w-4" /> Create Invoice
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+               <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice #</TableHead>
+                    <TableHead>Recipient</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                   {MOCK_INVOICES.map((inv) => (
+                     <TableRow key={inv.id}>
+                        <TableCell className="font-medium">{inv.id}</TableCell>
+                        <TableCell>{inv.recipient}</TableCell>
+                        <TableCell>{inv.description}</TableCell>
+                        <TableCell>{inv.date}</TableCell>
+                        <TableCell className="font-bold">{inv.amount}</TableCell>
+                        <TableCell>
+                           <Badge variant={inv.status === "Paid" ? "default" : "destructive"} className={inv.status === "Paid" ? "bg-green-600" : ""}>{inv.status}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                           <Button variant="ghost" size="sm"><Send className="h-4 w-4 mr-1" /> Resend</Button>
+                           <Button variant="ghost" size="sm"><Receipt className="h-4 w-4 mr-1" /> View</Button>
+                        </TableCell>
+                     </TableRow>
+                   ))}
+                </TableBody>
+               </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="transactions">
+           <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Recent Transactions</CardTitle>
+                <div className="flex items-center gap-2">
+                  <div className="relative w-64">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Search receipt or payer..." className="pl-9" />
+                  </div>
+                  <Button variant="outline" size="icon">
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Receipt ID</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Payer</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead>Amount (PGK)</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {TRANSACTIONS.map((trx) => (
+                    <TableRow key={trx.id}>
+                      <TableCell className="font-medium">{trx.id}</TableCell>
+                      <TableCell>{trx.date}</TableCell>
+                      <TableCell>{trx.payer}</TableCell>
+                      <TableCell>{trx.type}</TableCell>
+                      <TableCell>{trx.method}</TableCell>
+                      <TableCell className="font-bold">{trx.amount}</TableCell>
+                      <TableCell>
+                        <Badge variant={trx.status === "Completed" ? "default" : "secondary"} className={trx.status === "Completed" ? "bg-green-600" : ""}>
+                          {trx.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm">View</Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </MainLayout>
   );
 }

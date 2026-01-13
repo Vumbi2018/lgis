@@ -1,4 +1,4 @@
-import { User, Shield, FileText, Users, Building2, CreditCard, LayoutDashboard, Settings, ClipboardCheck, AlertTriangle, Sliders, MessageSquare } from "lucide-react";
+import { User, Shield, FileText, Users, Building2, CreditCard, LayoutDashboard, Settings, ClipboardCheck, AlertTriangle, Sliders, MessageSquare, Map as MapIcon, Activity } from "lucide-react";
 
 export const MOCK_COUNCILS = [
   { id: "1", name: "National Capital District Commission", type: "City", district: "Port Moresby" },
@@ -29,6 +29,8 @@ export const NAV_ITEMS = [
   { title: "Properties", url: "/properties", icon: Building2 },
   { title: "Revenue", url: "/revenue", icon: CreditCard },
   { title: "Public Interaction", url: "/complaints", icon: MessageSquare },
+  { title: "GIS & Maps", url: "/gis", icon: MapIcon },
+  { title: "Audit Logs", url: "/audit", icon: Activity },
   { title: "Configuration", url: "/configuration", icon: Sliders },
 ];
 
@@ -55,4 +57,24 @@ export const MOCK_ASSETS = [
   { id: "AST-001", name: "Boroko Market Stall A1", type: "Market Facility", location: "Boroko", condition: "Good", value: "PGK 15,000" },
   { id: "AST-002", name: "Konedobu Council Depot", type: "Building", location: "Konedobu", condition: "Fair", value: "PGK 2.5M" },
   { id: "AST-003", name: "Toyota Hilux Fleet #4", type: "Vehicle", location: "City Hall", condition: "Excellent", value: "PGK 120,000" },
+];
+
+export const MOCK_AUDIT_LOGS = [
+  { id: "LOG-9001", user: "Officer Kila", action: "Approved License", resource: "LIC-2025-001", timestamp: "2025-01-14 10:30:00", ip: "192.168.1.45" },
+  { id: "LOG-9002", user: "System", action: "Generated Invoice", resource: "INV-2025-889", timestamp: "2025-01-14 10:35:12", ip: "System" },
+  { id: "LOG-9003", user: "Admin", action: "Updated Tariff Rates", resource: "Trading License Class A", timestamp: "2025-01-13 16:20:00", ip: "192.168.1.10" },
+  { id: "LOG-9004", user: "Officer John", action: "Failed Login Attempt", resource: "Auth System", timestamp: "2025-01-13 09:15:00", ip: "203.11.44.22" },
+];
+
+export const MOCK_GIS_POINTS = [
+  { id: "P-001", lat: -9.478, lng: 147.155, type: "License", status: "Active", label: "Papindo Trading" },
+  { id: "P-002", lat: -9.482, lng: 147.160, type: "Inspection", status: "Pending", label: "City Pharmacy" },
+  { id: "P-003", lat: -9.475, lng: 147.150, type: "Incident", status: "High Risk", label: "Illegal Dumping Site" },
+  { id: "P-004", lat: -9.480, lng: 147.165, type: "Asset", status: "Good", label: "Boroko Market" },
+];
+
+export const MOCK_INVOICES = [
+  { id: "INV-2025-001", recipient: "Steamships Trading", description: "Annual Property Rates 2025", amount: "PGK 25,000.00", date: "2025-01-01", status: "Unpaid" },
+  { id: "INV-2025-002", recipient: "John Doe Stores", description: "Trading License Renewal", amount: "PGK 500.00", date: "2025-01-10", status: "Paid" },
+  { id: "INV-2025-003", recipient: "Vision City", description: "Waste Collection Fee (Q1)", amount: "PGK 4,500.00", date: "2025-01-12", status: "Unpaid" },
 ];

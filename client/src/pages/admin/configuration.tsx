@@ -6,10 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Save, Upload, Plus } from "lucide-react";
+import { Save, Upload, Plus, Database, ArrowRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 export default function ConfigurationPage() {
+  const [, setLocation] = useLocation();
+
   const handleSave = () => {
     toast({
       title: "Settings Saved",
@@ -25,6 +28,10 @@ export default function ConfigurationPage() {
           <p className="text-muted-foreground">Manage organization profile, users, and service rules.</p>
         </div>
         <div className="flex items-center space-x-2">
+          <Button variant="outline" onClick={() => setLocation("/integrations")}>
+            <Database className="mr-2 h-4 w-4" />
+            Integrations
+          </Button>
           <Button onClick={handleSave}>
             <Save className="mr-2 h-4 w-4" />
             Save Changes
