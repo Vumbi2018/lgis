@@ -4,7 +4,7 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - DATABASE_URL=postgresql://lgis_user:StrongPassword123!@db:5432/lgis
+      - DATABASE_URL=postgresql://lgis_user:StrongPassword123%21@db:5432/lgis
       - NODE_ENV=production
       - SESSION_SECRET=ReplaceWithAStrongSecretKey
     depends_on:
