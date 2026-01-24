@@ -2,8 +2,12 @@ import { db } from "./db";
 import {
   councils, councilUnits, users, roles, permissions, rolePermissions, userRoles,
   citizens, businesses, accounts, services, feeSchedules,
-  properties, markets, stalls, complaints, assets
+  properties, markets, stalls, complaints, assets,
+  licenseTypes, checklistRequirements, specialRequirements,
+  Document, serviceRequests
 } from "@shared/schema";
+import { licenseTypesData, checklistRequirementsData, specialRequirementsData } from "./license_data";
+import { hashPassword } from "./auth";
 
 async function seed() {
   console.log("🌱 Seeding LGIS database with specification-compliant data...");
@@ -19,18 +23,21 @@ async function seed() {
       currencyCode: "PGK",
       timezone: "Pacific/Port_Moresby",
       status: "active",
+      // Branding
+      themeColor: "#EAB308", // Yellow-500
+      fontFamily: "Inter",
+      logoUrl: "", // TODO: Add default logo URL
+      // Contact
+      email: "info@ncdc.gov.pg",
+      phone: "+675 324 0700",
+      website: "https://ncdc.gov.pg",
+      address: "City Hall, Waigani Drive, Port Moresby",
+      // Localization
+      dateFormat: "dd/MM/yyyy",
+      timeFormat: "HH:mm",
     }).returning();
 
-    const [laecc] = await db.insert(councils).values({
-      name: "Lae City Council",
-      level: "city",
-      countryCode: "PG",
-      currencyCode: "PGK",
-      timezone: "Pacific/Port_Moresby",
-      status: "active",
-    }).returning();
-
-    console.log("✅ Created 2 councils:", ncdc.name, ",", laecc.name);
+    console.log("✅ Created council:", ncdc.name);
 
     // ================================
     // COUNCIL UNITS
@@ -52,34 +59,108 @@ async function seed() {
     // ================================
     // PERMISSIONS (Platform-defined)
     // ================================
-    await db.insert(permissions).values([
+    // Comprehensive permission catalogue - 78 permissions across 9 modules
+    const permissionsData = [
+      // Registry Module
       { permissionCode: "citizen:read", description: "View citizen records" },
       { permissionCode: "citizen:write", description: "Create/update citizen records" },
+      { permissionCode: "citizen:delete", description: "Delete citizen records" },
+      { permissionCode: "citizen:export", description: "Export citizen data" },
+      { permissionCode: "citizen:pii", description: "Access personally identifiable information" },
       { permissionCode: "business:read", description: "View business records" },
       { permissionCode: "business:write", description: "Create/update business records" },
-      { permissionCode: "service:read", description: "View service catalogue" },
-      { permissionCode: "service:write", description: "Manage service catalogue" },
-      { permissionCode: "request:read", description: "View service requests" },
-      { permissionCode: "request:write", description: "Process service requests" },
-      { permissionCode: "request:approve", description: "Approve service requests" },
+      { permissionCode: "business:delete", description: "Delete business records" },
+      { permissionCode: "business:verify", description: "Verify business registrations" },
+      { permissionCode: "business:export", description: "Export business data" },
+      { permissionCode: "property:read", description: "View property records" },
+      { permissionCode: "property:write", description: "Create/update property records" },
+      { permissionCode: "property:delete", description: "Delete property records" },
+      { permissionCode: "property:assess", description: "Create/update rate assessments" },
+
+      // Licensing Module
+      { permissionCode: "request:read", description: "View service requests/applications" },
+      { permissionCode: "request:write", description: "Create/update service requests" },
+      { permissionCode: "request:approve", description: "Approve requests" },
+      { permissionCode: "request:reject", description: "Reject requests" },
+      { permissionCode: "request:delete", description: "Delete requests" },
+      { permissionCode: "licence:read", description: "View licences" },
+      { permissionCode: "licence:write", description: "Issue/update licences" },
+      { permissionCode: "licence:renew", description: "Renew licences" },
+      { permissionCode: "licence:revoke", description: "Revoke licences" },
+      { permissionCode: "licence:suspend", description: "Suspend licences" },
       { permissionCode: "inspection:read", description: "View inspections" },
-      { permissionCode: "inspection:write", description: "Conduct inspections" },
-      { permissionCode: "invoice:read", description: "View invoices" },
-      { permissionCode: "invoice:write", description: "Create/manage invoices" },
+      { permissionCode: "inspection:write", description: "Conduct/update inspections" },
+      { permissionCode: "inspection:schedule", description: "Schedule inspections" },
+      { permissionCode: "inspection:complete", description: "Complete inspections" },
+
+      // Financial Module
       { permissionCode: "payment:read", description: "View payments" },
       { permissionCode: "payment:write", description: "Record payments" },
-      { permissionCode: "licence:read", description: "View licences" },
-      { permissionCode: "licence:write", description: "Issue licences" },
-      { permissionCode: "enforcement:read", description: "View enforcement cases" },
-      { permissionCode: "enforcement:write", description: "Manage enforcement cases" },
-      { permissionCode: "audit:read", description: "View audit logs" },
-      { permissionCode: "user:read", description: "View users" },
-      { permissionCode: "user:write", description: "Manage users" },
-      { permissionCode: "role:read", description: "View roles" },
-      { permissionCode: "role:write", description: "Manage roles" },
-    ]).onConflictDoNothing();
+      { permissionCode: "payment:refund", description: "Process refunds" },
+      { permissionCode: "payment:delete", description: "Delete/void payments" },
+      { permissionCode: "payment:export", description: "Export payment records" },
+      { permissionCode: "invoice:read", description: "View invoices" },
+      { permissionCode: "invoice:write", description: "Create/update invoices" },
+      { permissionCode: "invoice:delete", description: "Delete/void invoices" },
+      { permissionCode: "invoice:waive", description: "Waive fees/charges" },
+      { permissionCode: "fee:read", description: "View fee schedules" },
+      { permissionCode: "fee:write", description: "Manage fee schedules" },
 
-    console.log("✅ Created permissions");
+      // Enforcement Module
+      { permissionCode: "enforcement:read", description: "View enforcement cases" },
+      { permissionCode: "enforcement:write", description: "Create/update cases" },
+      { permissionCode: "enforcement:assign", description: "Assign cases to officers" },
+      { permissionCode: "enforcement:close", description: "Close cases" },
+      { permissionCode: "complaint:read", description: "View complaints" },
+      { permissionCode: "complaint:write", description: "Create/update complaints" },
+      { permissionCode: "complaint:assign", description: "Assign complaints" },
+      { permissionCode: "notice:read", description: "View notices" },
+      { permissionCode: "notice:write", description: "Issue notices" },
+      { permissionCode: "notice:approve", description: "Approve notices" },
+
+      // Services Module
+      { permissionCode: "service:read", description: "View service catalogue" },
+      { permissionCode: "service:write", description: "Manage service catalogue" },
+      { permissionCode: "service:activate", description: "Activate/deactivate services" },
+      { permissionCode: "workflow:read", description: "View workflows" },
+      { permissionCode: "workflow:write", description: "Manage workflows" },
+
+      // Administration Module
+      { permissionCode: "user:read", description: "View users" },
+      { permissionCode: "user:write", description: "Create/update users" },
+      { permissionCode: "user:delete", description: "Delete users" },
+      { permissionCode: "user:activate", description: "Activate/deactivate users" },
+      { permissionCode: "role:read", description: "View roles" },
+      { permissionCode: "role:write", description: "Create/update roles" },
+      { permissionCode: "role:assign", description: "Assign roles to users" },
+      { permissionCode: "permission:read", description: "View permissions" },
+      { permissionCode: "permission:assign", description: "Assign permissions to roles" },
+      { permissionCode: "audit:read", description: "View audit logs" },
+      { permissionCode: "audit:export", description: "Export audit logs" },
+      { permissionCode: "config:read", description: "View configuration" },
+      { permissionCode: "config:write", description: "Modify configuration" },
+
+      // Security Module
+      { permissionCode: "breakglass:use", description: "Use break-glass emergency access" },
+      { permissionCode: "breakglass:review", description: "Review break-glass access logs" },
+      { permissionCode: "breakglass:approve", description: "Approve break-glass requests" },
+
+      // Reporting Module
+      { permissionCode: "report:read", description: "View reports" },
+      { permissionCode: "report:create", description: "Create custom reports" },
+      { permissionCode: "report:export", description: "Export reports" },
+      { permissionCode: "dashboard:read", description: "View dashboards" },
+      { permissionCode: "analytics:read", description: "Access analytics" },
+
+      // GIS Module
+      { permissionCode: "gis:read", description: "View GIS maps and layers" },
+      { permissionCode: "gis:write", description: "Edit GIS data" },
+      { permissionCode: "gis:export", description: "Export GIS data" }
+    ];
+
+    await db.insert(permissions).values(permissionsData).onConflictDoNothing();
+
+    console.log(`✅ Created ${permissionsData.length} permissions`);
 
     // ================================
     // ROLES (Council-specific)
@@ -140,7 +221,7 @@ async function seed() {
       fullName: "System Administrator",
       email: "admin@ncdc.gov.pg",
       phone: "+675 325 6400",
-      passwordHash: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.5GGdA", // placeholder
+      passwordHash: await hashPassword("admin123"),
       status: "active",
       mfaEnabled: false,
     }).returning();
@@ -151,7 +232,29 @@ async function seed() {
       fullName: "John Kila",
       email: "jkila@ncdc.gov.pg",
       phone: "+675 7234 5678",
-      passwordHash: "$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.5GGdB",
+      passwordHash: await hashPassword("officer123"),
+      status: "active",
+      mfaEnabled: false,
+    }).returning();
+
+    const [managerUser] = await db.insert(users).values({
+      councilId: ncdc.councilId,
+      unitId: licensingUnit.unitId,
+      fullName: "Mary Wilson",
+      email: "mwilson@ncdc.gov.pg",
+      phone: "+675 7234 9012",
+      passwordHash: await hashPassword("manager123"),
+      status: "active",
+      mfaEnabled: true,
+    }).returning();
+
+    const [inspectorUser] = await db.insert(users).values({
+      councilId: ncdc.councilId,
+      unitId: licensingUnit.unitId,
+      fullName: "Peter Tau",
+      email: "ptau@ncdc.gov.pg",
+      phone: "+675 7234 3456",
+      passwordHash: await hashPassword("inspector123"),
       status: "active",
       mfaEnabled: false,
     }).returning();
@@ -164,6 +267,8 @@ async function seed() {
     await db.insert(userRoles).values([
       { userId: adminUser.userId, roleId: adminRole.roleId },
       { userId: officerUser.userId, roleId: officerRole.roleId },
+      { userId: managerUser.userId, roleId: managerRole.roleId },
+      { userId: inspectorUser.userId, roleId: inspectorRole.roleId },
     ]);
 
     console.log("✅ Assigned roles to users");
@@ -295,7 +400,7 @@ async function seed() {
       active: true,
     }).returning();
 
-    await db.insert(services).values([
+    const servicesList = await db.insert(services).values([
       {
         councilId: ncdc.councilId,
         code: "LIC-LIQUOR",
@@ -326,7 +431,41 @@ async function seed() {
         requiresApproval: false,
         active: true,
       },
-    ]);
+      {
+        councilId: ncdc.councilId,
+        code: "ENV-EIA",
+        name: "Environmental Impact Assessment",
+        category: "environment",
+        description: "Assessment of environmental impacts for major projects",
+        requiresInspection: true,
+        requiresApproval: true,
+        active: true,
+      },
+      {
+        councilId: ncdc.councilId,
+        code: "ENV-WASTE",
+        name: "Waste Audit",
+        category: "environment",
+        description: "Audit of waste management facilities",
+        requiresInspection: true,
+        requiresApproval: true,
+        active: true,
+      },
+      {
+        councilId: ncdc.councilId,
+        code: "ENV-WATER",
+        name: "Water Quality Investigation",
+        category: "environment",
+        description: "Investigation of water quality in local water bodies",
+        requiresInspection: true,
+        requiresApproval: true,
+        active: true,
+      },
+    ]).returning();
+
+    const envEIA = servicesList.find(s => s.code === "ENV-EIA")!;
+    const envWaste = servicesList.find(s => s.code === "ENV-WASTE")!;
+    const envWater = servicesList.find(s => s.code === "ENV-WATER")!;
 
     console.log("✅ Created service catalogue");
 
@@ -541,6 +680,96 @@ async function seed() {
     ]);
 
     console.log("✅ Seeded assets");
+
+    // ================================
+    // LICENSE TYPES
+    // ================================
+    console.log("Creating license types...");
+    const licenseTypeMap = new Map<string, string>();
+
+    for (const lt of licenseTypesData) {
+      const [inserted] = await db.insert(licenseTypes).values({
+        licenseName: lt.licenseName,
+        licenseCategory: lt.licenseCategory,
+        applicationForm: lt.applicationForm,
+        description: lt.description,
+      }).returning();
+      licenseTypeMap.set(lt.licenseName, inserted.id);
+    }
+    console.log(`✅ Created ${licenseTypeMap.size} license types`);
+
+    // ================================
+    // CHECKLIST REQUIREMENTS
+    // ================================
+    console.log("Creating checklist requirements...");
+    for (const req of checklistRequirementsData) {
+      const licenseTypeId = licenseTypeMap.get(req.licenseName);
+      if (licenseTypeId) {
+        await db.insert(checklistRequirements).values({
+          licenseTypeId: licenseTypeId,
+          itemNumber: req.itemNumber,
+          documentName: req.documentName,
+          responsibleEntity: req.responsibleEntity,
+          requirementNote: req.requirementNote,
+        });
+      }
+    }
+    console.log("✅ Created checklist requirements");
+
+    // ================================
+    // SPECIAL REQUIREMENTS
+    // ================================
+    console.log("Creating special requirements...");
+    for (const req of specialRequirementsData) {
+      const licenseTypeId = licenseTypeMap.get(req.licenseName);
+      if (licenseTypeId) {
+        await db.insert(specialRequirements).values({
+          licenseTypeId: licenseTypeId,
+          requirementName: req.requirementName,
+          issuingAuthority: req.issuingAuthority,
+          description: req.description,
+        });
+      }
+    }
+    console.log("✅ Created special requirements");
+
+    // ================================
+    // ENVIRONMENTAL SERVICE REQUESTS
+    // ================================
+    console.log("Creating environmental assessments...");
+    await db.insert(serviceRequests).values([
+      {
+        councilId: ncdc.councilId,
+        serviceId: envEIA.serviceId,
+        requesterType: "business",
+        requesterId: biz1.businessId,
+        status: "processing",
+        requestRef: "EIA-2026-001",
+        formData: { projectName: "Harbour City Expansion", assessmentType: "Impact Assessment" },
+        submittedAt: new Date("2026-01-18"),
+      },
+      {
+        councilId: ncdc.councilId,
+        serviceId: envWaste.serviceId,
+        requesterType: "business",
+        requesterId: biz2.businessId,
+        status: "approved",
+        requestRef: "ENV-2026-042",
+        formData: { projectName: "Tuanaimato Industrial", assessmentType: "Waste Audit" },
+        submittedAt: new Date("2026-01-15"),
+      },
+      {
+        councilId: ncdc.councilId,
+        serviceId: envWater.serviceId,
+        requesterType: "citizen",
+        requesterId: citizen1.citizenId,
+        status: "submitted",
+        requestRef: "INV-2026-009",
+        formData: { projectName: "River Water Quality", assessmentType: "Investigation" },
+        submittedAt: new Date("2026-01-12"),
+      },
+    ]);
+    console.log("✅ Seeded environmental assessments");
 
     console.log("\n🎉 Database seeding completed successfully!");
     console.log("📊 Summary:");

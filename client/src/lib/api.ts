@@ -2,9 +2,19 @@
 const API_BASE = "/api";
 
 export async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  // Get council ID from localStorage if available
+  const storedOrg = localStorage.getItem('currentOrganization');
+  let councilId = '';
+  try {
+    councilId = storedOrg ? JSON.parse(storedOrg)?.councilId : '';
+  } catch (e) {
+    console.warn('Failed to parse currentOrganization from localStorage');
+  }
+
   const response = await fetch(`${API_BASE}${endpoint}`, {
     headers: {
       "Content-Type": "application/json",
+      "x-council-id": councilId,
       ...options?.headers,
     },
     ...options,
@@ -105,7 +115,7 @@ export const api = {
 
   // Audit Logs
   auditLogs: {
-    list: (organizationId?: string) => 
+    list: (organizationId?: string) =>
       fetchAPI(`/audit-logs${organizationId ? `?organizationId=${organizationId}` : ""}`),
   },
 };

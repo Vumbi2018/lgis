@@ -1,6 +1,7 @@
 import { Bell, Search, Menu, User, MapPin, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +14,10 @@ import { MOCK_USERS } from "@/lib/mock-data";
 import { useLocation } from "wouter";
 import { toast } from "@/hooks/use-toast";
 import { useOrganization } from "@/contexts/organization-context";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function Header() {
   const user = MOCK_USERS[0];
@@ -31,8 +36,20 @@ export function Header() {
     });
   };
 
+  const { data: notifications } = useQuery({
+    queryKey: ["/api/v1/notifications"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/v1/notifications?userId=${user.id}`);
+      return res.json();
+    }
+  });
+
+  const unreadCount = notifications?.filter((n: any) => !n.read).length || 0;
+
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-white px-6 shadow-sm">
+    <header
+      className="sticky top-0 z-30 flex items-center justify-between px-8 h-header bg-header text-header-foreground border-b border-outline-dimmer shadow-sm"
+    >
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" className="md:hidden">
           <Menu className="h-5 w-5" />
@@ -41,66 +58,105 @@ export function Header() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-auto p-0 hover:bg-transparent font-normal flex items-center gap-2">
-                <span className="font-bold text-foreground text-lg tracking-tight text-left">
-                  {currentOrganization?.name || "Loading..."}
+                <span className="font-bold text-lg tracking-tight text-left text-foreground-default">
+                  {currentOrganization?.name || <div className="h-6 w-32 bg-gray-200 animate-pulse rounded" />}
                 </span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                <ChevronDown className="h-4 w-4 text-foreground-dimmer" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[300px]">
-              <DropdownMenuLabel>Switch Organization</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {organizations.map((org) => (
-                <DropdownMenuItem key={org.id} onClick={() => handleCouncilSwitch(org)} className="cursor-pointer">
-                  <div className="flex flex-col">
-                    <span className="font-medium">{org.name}</span>
-                    <span className="text-xs text-muted-foreground">{org.district}</span>
-                  </div>
-                </DropdownMenuItem>
-              ))}
+            <DropdownMenuContent align="start" className="w-[300px] bg-background-default border-outline-dimmer">
+              <DropdownMenuLabel className="text-foreground-default">Switch Organization</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-outline-dimmer" />
+              {organizations
+                .filter((org, index, self) =>
+                  index === self.findIndex((t) => t.name === org.name)
+                )
+                .map((org) => (
+                  <DropdownMenuItem key={org.councilId} onClick={() => handleCouncilSwitch(org)} className="cursor-pointer">
+                    <div className="flex flex-col">
+                      <span className="font-medium text-foreground-default">{org.name}</span>
+                      <span className="text-xs text-foreground-dimmer">{org.level}</span>
+                    </div>
+                  </DropdownMenuItem>
+                ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          
-          <span className="text-xs text-muted-foreground flex items-center mt-0.5">
-             <MapPin className="h-3 w-3 mr-1 text-red-600" />
-             {currentOrganization?.district || "Papua New Guinea"}
+
+          <span className="text-xs flex items-center mt-0.5 text-foreground-dimmer">
+            <MapPin className="h-3 w-3 mr-1 text-accent-negative-default" />
+            Papua New Guinea
           </span>
         </div>
       </div>
 
       <div className="flex items-center gap-4">
         <div className="relative hidden w-64 sm:block">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-foreground-dimmest" />
           <Input
             type="search"
             placeholder="Search NCDC records..."
-            className="w-full bg-secondary/20 pl-9 md:w-[300px] border-none focus-visible:ring-1 focus-visible:ring-yellow-500"
+            className="w-full pl-10 md:w-[300px] bg-background-higher border-outline-dimmer text-sm rounded-md"
           />
         </div>
 
-        <Button variant="ghost" size="icon" className="relative hover:bg-yellow-50">
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-600 border border-white" />
-        </Button>
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="ghost" size="icon" className="relative transition-colors text-foreground-default">
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <span
+                  className="absolute right-2 top-2 h-2 w-2 rounded-full border border-white bg-accent-negative-default"
+                />
+              )}
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent align="end" className="w-80 bg-background-default border-outline-dimmer">
+            <h4 className="font-semibold mb-2 text-foreground-default">Notifications</h4>
+            <ScrollArea className="h-[300px]">
+              {notifications?.length === 0 ? (
+                <p className="text-sm p-4 text-center text-foreground-dimmer">No notifications</p>
+              ) : (
+                <div className="space-y-1">
+                  {notifications?.map((n: any) => (
+                    <div
+                      key={n.notificationId}
+                      className={cn(
+                        "p-3 rounded-lg text-sm",
+                        !n.read ? "font-medium bg-background-higher" : "transparent"
+                      )}
+                    >
+                      <p className="font-medium text-foreground-default">{n.title}</p>
+                      <p className="text-foreground-dimmer">{n.message}</p>
+                      <p className="text-xs mt-1 text-foreground-dimmest">{new Date(n.createdAt).toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </PopoverContent>
+        </Popover>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-9 w-9 rounded-full bg-black text-white hover:bg-black/80 ring-2 ring-offset-2 ring-transparent focus:ring-yellow-500">
-               <span className="font-bold text-xs">{user.avatar}</span>
+            <Button
+              variant="ghost"
+              className="relative h-9 w-9 rounded-full transition-all bg-foreground-default text-background-default"
+            >
+              <span className="font-bold text-xs">{user.avatar}</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
+          <DropdownMenuContent align="end" className="w-56 bg-background-default border-outline-dimmer">
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user.name}</p>
-                <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                <p className="text-sm font-medium leading-none text-foreground-default">{user.name}</p>
+                <p className="text-xs leading-none text-foreground-dimmer">{user.email}</p>
               </div>
             </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Officer Profile</DropdownMenuItem>
-            <DropdownMenuItem>NCDC Settings</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-red-600 focus:text-red-600 focus:bg-red-50" onClick={handleLogout}>
+            <DropdownMenuSeparator className="bg-outline-dimmer" />
+            <DropdownMenuItem className="text-foreground-default">Officer Profile</DropdownMenuItem>
+            <DropdownMenuItem className="text-foreground-default">NCDC Settings</DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-outline-dimmer" />
+            <DropdownMenuItem className="focus:bg-red-50 text-accent-negative-default" onClick={handleLogout}>
               Log out
             </DropdownMenuItem>
           </DropdownMenuContent>

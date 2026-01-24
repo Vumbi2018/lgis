@@ -13,9 +13,11 @@ lgis/
 │   │   ├── hooks/             # Custom React hooks
 │   │   ├── lib/               # Utility functions
 │   │   ├── pages/             # Page components
+│   │   │   ├── assets/        # Council assets and facilities
 │   │   │   ├── dashboard/     # Dashboard page
-│   │   │   ├── registry/      # Citizens, Businesses, Assets
+│   │   │   ├── registry/      # Citizens, Businesses
 │   │   │   ├── licensing/     # Licences and permits
+│   │   │   ├── procurement/   # Purchase orders and procurement
 │   │   │   ├── revenue/       # Billing and payments
 │   │   │   ├── inspections/   # Inspection management
 │   │   │   ├── complaints/    # Complaint handling
@@ -147,4 +149,5 @@ pg_dump $DATABASE_URL > database_backup.sql
 12. **Enforcement** - Violations and penalties
 13. **Complaints** - Public grievance handling
 14. **Markets** - Market and stall management
-15. **Audit Logs** - Immutable activity tracking
+15. **Procurement** - Purchase orders and inventory
+16. **Audit Logs** - Immutable activity tracking

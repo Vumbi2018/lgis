@@ -1,405 +1,461 @@
-import { MainLayout } from "@/components/layout/main-layout";
-import { LICENSE_TYPES } from "@/lib/licensing-data";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useRoute, useLocation } from "wouter";
 import { useState } from "react";
-import { CheckCircle, Upload, ChevronRight, ChevronLeft, FileText, AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
+import { Header } from "@/components/layout/header";
+import { Sidebar } from "@/components/layout/sidebar";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/hooks/use-toast";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useToast } from "@/hooks/use-toast";
+import { useLocation, useParams } from "wouter";
+import { Loader2, ArrowRight, ArrowLeft } from "lucide-react";
+import { useEffect } from "react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  BarberShopForm,
+  DinnerSpecialPermitForm,
+  CabaretPermitForm,
+  ClubLicenseForm,
+  PublicansLicenseForm,
+  TradeLicenseForm,
+  StorekeeperLicenseForm,
+  SecondHandDealerForm,
+  RestaurantLicenseForm,
+  BottleShopLicenseForm,
+  ElectronicShopLicenseForm
+} from "./forms/LicenseForms";
 
-export default function ApplicationWizard() {
-  const [, params] = useRoute("/licensing/apply/:id");
+// Schema for the initial application step
+const applicationSchema = z.object({
+  businessId: z.string().min(1, "Please select a business"),
+  licenseTypeId: z.string().min(1, "Please select a license type"),
+});
+
+export default function ApplyPage() {
+  const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [step, setStep] = useState(1);
-  const [uploads, setUploads] = useState<Record<string, boolean>>({});
-  const [uploading, setUploading] = useState<Record<string, boolean>>({});
-  
-  const licenseId = params?.id;
-  const license = LICENSE_TYPES.find(l => l.id === licenseId);
+  const [step, setStep] = useState<"initial" | "requirements" | "form">("initial");
+  const [selectedDetails, setSelectedDetails] = useState<{ businessId: string; licenseTypeId: string } | null>(null);
 
-  if (!license) {
-    return (
-      <MainLayout>
-        <div className="flex flex-col items-center justify-center h-[50vh]">
-          <AlertCircle className="h-12 w-12 text-destructive mb-4" />
-          <h2 className="text-2xl font-bold">License Type Not Found</h2>
-          <Button onClick={() => setLocation("/licensing")} className="mt-4">
-            Return to Catalogue
-          </Button>
-        </div>
-      </MainLayout>
-    );
-  }
+  // Fetch user's businesses
+  const { data: businesses } = useQuery({
+    queryKey: ["/api/v1/businesses/my"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/v1/businesses");
+      return res.json();
+    }
+  });
 
-  const handleUpload = (itemId: string) => {
-    setUploading(prev => ({ ...prev, [itemId]: true }));
-    // Simulate upload delay
-    setTimeout(() => {
-      setUploading(prev => ({ ...prev, [itemId]: false }));
-      setUploads(prev => ({ ...prev, [itemId]: true }));
-      toast({
-        title: "File Uploaded",
-        description: "Document has been successfully attached.",
+  // Fetch license types
+  const { data: licenseTypes } = useQuery({
+    queryKey: ["/api/v1/license-types"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/v1/license-types");
+      return res.json();
+    }
+  });
+
+  const { id } = useParams();
+  const form = useForm<z.infer<typeof applicationSchema>>({
+    resolver: zodResolver(applicationSchema),
+    defaultValues: {
+      licenseTypeId: id || "",
+    }
+  });
+
+  // Update form if ID changes
+  useEffect(() => {
+    if (id) {
+      form.setValue("licenseTypeId", id);
+    }
+  }, [id, form]);
+
+  const applyMutation = useMutation({
+    mutationFn: async (formData: any) => {
+      const selectedBusiness = businesses?.find((b: any) => b.businessId === selectedDetails?.businessId);
+
+      // Get councilId from business or fallback to organization context
+      const storedOrg = localStorage.getItem('currentOrganization');
+      const contextCouncilId = storedOrg ? JSON.parse(storedOrg)?.councilId : '';
+      const councilId = selectedBusiness?.councilId || contextCouncilId;
+
+      // Extract files from formData
+      const processedFormData = { ...formData };
+      const filesToUpload: { file: File; path: string }[] = [];
+
+      // Recursively find files
+      const extractFiles = (obj: any, path: string = ''): any => {
+        if (obj instanceof File) {
+          filesToUpload.push({ file: obj, path });
+          return { fileName: obj.name, fileSize: obj.size, uploaded: false };
+        } else if (Array.isArray(obj)) {
+          return obj.map((item, index) => extractFiles(item, `${path}[${index}]`));
+        } else if (obj && typeof obj === 'object') {
+          const processed: any = {};
+          for (const [key, value] of Object.entries(obj)) {
+            processed[key] = extractFiles(value, path ? `${path}.${key}` : key);
+          }
+          return processed;
+        }
+        return obj;
+      };
+
+      // Process the entire formData
+      for (const [key, value] of Object.entries(formData)) {
+        processedFormData[key] = extractFiles(value, key);
+      }
+
+      console.log("Submitting application with:", {
+        businessId: selectedDetails?.businessId,
+        licenseTypeId: selectedDetails?.licenseTypeId,
+        councilId,
+        formData: processedFormData
       });
-    }, 1500);
+
+      // Submit the application first
+      const res = await apiRequest("POST", "/api/v1/licensing/apply-test", {
+        businessId: selectedDetails?.businessId,
+        licenseTypeId: selectedDetails?.licenseTypeId,
+        councilId,
+        formData: processedFormData
+      });
+
+      const result = await res.json();
+
+      // Now upload files with the correct requestId
+      if (result.request?.requestId) {
+        await Promise.all(filesToUpload.map(async ({ file }) => {
+          const formDataUpload = new FormData();
+          formDataUpload.append('file', file);
+          formDataUpload.append('councilId', councilId); // Use resolved councilId
+          formDataUpload.append('ownerType', 'service_request');
+          formDataUpload.append('ownerId', result.request.requestId);
+
+          const uploadRes = await fetch('/api/v1/uploads', {
+            method: 'POST',
+            body: formDataUpload
+          });
+
+          if (!uploadRes.ok) throw new Error('File upload failed');
+        }));
+      }
+
+      return result;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Application Submitted",
+        description: "Your license application has been submitted successfully.",
+      });
+      setLocation("/licensing"); // Redirect to Licensing Dashboard
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Submission Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  const onInitialSubmit = (values: z.infer<typeof applicationSchema>) => {
+    setSelectedDetails(values);
+    setStep("requirements");
   };
 
-  const handleSubmit = () => {
-    toast({
-      title: "Application Submitted",
-      description: `Your application for ${license.name} has been received. Reference: APP-${Math.floor(Math.random() * 10000)}`,
-    });
-    setLocation("/licensing");
+  const onRequirementsSubmit = () => {
+    setStep("form");
   };
 
-  const steps = [
-    { number: 1, title: "Applicant Details", description: "Business & Contact Info" },
-    { number: 2, title: "Premises & Land", description: "Location & Parcel Info" },
-    { number: 3, title: "Document Checklist", description: "Required Attachments" },
-    { number: 4, title: "Review & Submit", description: "Verification" }
-  ];
+  const currentLicenseType = licenseTypes?.find((lt: any) => lt.id === selectedDetails?.licenseTypeId);
+
+
+
+
+
+
+
+  const selectedBusiness = businesses?.find((b: any) => b.businessId === selectedDetails?.businessId);
+
+  const renderForm = () => {
+    if (!currentLicenseType) return <div>Error: License Type Not Found</div>;
+
+    const name = currentLicenseType.licenseName.toLowerCase();
+    const commonProps = {
+      onSubmit: (data: any) => applyMutation.mutate(data),
+      isSubmitting: applyMutation.isPending,
+      licenseTypeName: currentLicenseType.licenseName,
+      business: selectedBusiness
+    };
+
+    // Mapping based on License Name - Ideally done via database "form_code" or similar
+    if (name.includes("barber")) {
+      return <BarberShopForm {...commonProps} />;
+    }
+    if (name.includes("dinner") || name.includes("special")) {
+      return <DinnerSpecialPermitForm {...commonProps} />;
+    }
+    if (name.includes("cabaret")) {
+      return <CabaretPermitForm {...commonProps} />;
+    }
+    if (name.includes("club")) {
+      return <ClubLicenseForm {...commonProps} />;
+    }
+    if (name.includes("publican") || name.includes("tavern") || name.includes("hotel")) {
+      return <PublicansLicenseForm {...commonProps} />;
+    }
+    if (name.includes("trade") || name.includes("trading") || name.includes("general") || name.includes("business")) {
+      return <TradeLicenseForm {...commonProps} />;
+    }
+    if (name.includes("store")) {
+      return <StorekeeperLicenseForm {...commonProps} />;
+    }
+    if (name.includes("second") || name.includes("dealer")) {
+      return <SecondHandDealerForm {...commonProps} />;
+    }
+    if (name.includes("restaurant") || name.includes("food")) {
+      return <RestaurantLicenseForm {...commonProps} />;
+    }
+    if (name.includes("bottle") || name.includes("liquor")) {
+      return <BottleShopLicenseForm {...commonProps} />;
+    }
+    if (name.includes("electronic")) {
+      return <ElectronicShopLicenseForm {...commonProps} />;
+    }
+    if (name.includes("entertainment") || name.includes("theatre") || name.includes("cinema")) {
+      // Map Entertainment to Trade/Business form for now as it captures general details + premises
+      return <TradeLicenseForm {...commonProps} />;
+    }
+    if (name.includes("gas") || name.includes("industrial")) {
+      // Map Industrial Gas to Trade/Business form
+      return <TradeLicenseForm {...commonProps} />;
+    }
+
+    // Default fallback: Use Trade License Form instead of empty submission logic
+    return <TradeLicenseForm {...commonProps} />;
+  };
 
   return (
-    <MainLayout>
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <Button variant="ghost" className="mb-4 pl-0" onClick={() => setLocation("/licensing")}>
-            <ChevronLeft className="mr-2 h-4 w-4" /> Back to Catalogue
-          </Button>
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-              <license.icon className="h-6 w-6" />
-            </div>
+    <div className="flex bg-gray-50 min-h-screen">
+      <Sidebar />
+      <div className="flex-1 flex flex-col">
+        <Header />
+        <main className="flex-1 p-6 mx-auto w-full">
+          <div className="mb-6 flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-primary">{license.name} Application</h1>
-              <p className="text-muted-foreground">New Application • {license.formType}</p>
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+                {step === "initial" ? "New License Application" : (currentLicenseType?.licenseName || "Application Details")}
+              </h1>
+              <p className="text-gray-500">
+                {step === "initial" ? "Select your business and the type of license you need." : "Please fill out the application form below."}
+              </p>
             </div>
+            {step === "form" && (
+              <Button variant="outline" onClick={() => setStep("initial")}>
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back
+              </Button>
+            )}
           </div>
-        </div>
 
-        {/* Progress Stepper */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between relative">
-            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-full h-1 bg-secondary -z-10" />
-            {steps.map((s) => (
-              <div key={s.number} className="flex flex-col items-center bg-background px-4 z-10">
-                <div 
-                  className={`h-8 w-8 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${
-                    step >= s.number 
-                      ? "bg-primary text-primary-foreground" 
-                      : "bg-secondary text-muted-foreground"
-                  }`}
-                >
-                  {s.number}
-                </div>
-                <span className={`text-xs mt-2 font-medium ${step >= s.number ? "text-primary" : "text-muted-foreground"}`}>
-                  {s.title}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>{step === "initial" ? "Application Setup" : "Form Details"}</CardTitle>
+              <CardDescription>
+                {step === "initial" ? "Start a new application for your business." : "Complete the required fields."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {step === "initial" ? (
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onInitialSubmit)} className="space-y-6">
+                    <FormField
+                      control={form.control}
+                      name="businessId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Select Business</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a business" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {businesses?.map((b: any) => (
+                                <SelectItem key={b.businessId} value={b.businessId}>
+                                  {b.tradingName || b.legalName || "Unknown Business"} ({b.registrationNo || "N/A"})
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-        <div className="grid gap-6">
-          {step === 1 && (
-            <Card className="animate-in fade-in slide-in-from-bottom-4">
-              <CardHeader>
-                <CardTitle>Applicant Information</CardTitle>
-                <CardDescription>Please provide details about the business entity applying for the license.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid gap-6 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="bizName">Business Name (As Registered)</Label>
-                    <Input id="bizName" placeholder="e.g. Papindo Trading Ltd" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tradeName">Trade Name (If different)</Label>
-                    <Input id="tradeName" placeholder="e.g. Papindo Supermarket Waigani" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tin">Tax Identification Number (TIN)</Label>
-                    <Input id="tin" placeholder="10 Digits" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="appType">Application Type</Label>
-                    <Select defaultValue="new">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="new">New Application</SelectItem>
-                        <SelectItem value="renewal">Renewal</SelectItem>
-                        <SelectItem value="transfer">Transfer of Ownership</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="col-span-2 border-t pt-4 mt-2">
-                    <h3 className="font-medium mb-4 text-sm">Contact Details</h3>
-                    <div className="grid md:grid-cols-3 gap-4">
-                       <div className="space-y-2">
-                        <Label htmlFor="contactName">Contact Person</Label>
-                        <Input id="contactName" placeholder="Full Name" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">Phone Number</Label>
-                        <Input id="phone" placeholder="+675..." />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
-                        <Input id="email" type="email" placeholder="email@company.com" />
-                      </div>
-                    </div>
-                  </div>
+                    <FormField
+                      control={form.control}
+                      name="licenseTypeId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>License Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select license type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent className="max-h-[300px] overflow-y-auto">
+                              {licenseTypes?.map((lt: any) => (
+                                <SelectItem key={lt.id} value={lt.id}>
+                                  {lt.licenseName} - {lt.licenseCategory}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-                  <div className="col-span-2 space-y-2">
-                    <Label htmlFor="postalAddress">Postal Address</Label>
-                    <Textarea id="postalAddress" placeholder="PO Box..." className="h-20" />
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-end">
-                <Button onClick={() => setStep(2)}>
-                  Next Step <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
-              </CardFooter>
-            </Card>
-          )}
-
-          {step === 2 && (
-            <Card className="animate-in fade-in slide-in-from-bottom-4">
-              <CardHeader>
-                <CardTitle>Premises & Land Information</CardTitle>
-                <CardDescription>Enter the location details as per the Land Title/Lease Agreement.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="bg-secondary/20 p-4 rounded-lg border border-secondary mb-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <FileText className="h-4 w-4 text-primary" />
-                    <span className="font-medium text-sm">Parcel Identification</span>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="section" className="text-xs">Section</Label>
-                      <Input id="section" placeholder="e.g. 45" className="bg-background" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="lot" className="text-xs">Lot / Portion</Label>
-                      <Input id="lot" placeholder="e.g. 12" className="bg-background" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="allotment" className="text-xs">Allotment</Label>
-                      <Input id="allotment" placeholder="Optional" className="bg-background" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="province" className="text-xs">Province Code</Label>
-                      <Input id="province" defaultValue="04 (NCD)" disabled className="bg-muted" />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="suburb">Suburb / Town</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Suburb" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="boroko">Boroko</SelectItem>
-                        <SelectItem value="waigani">Waigani</SelectItem>
-                        <SelectItem value="gordons">Gordons</SelectItem>
-                        <SelectItem value="hohola">Hohola</SelectItem>
-                        <SelectItem value="erehu">Gerehu</SelectItem>
-                        <SelectItem value="konedobu">Konedobu</SelectItem>
-                        <SelectItem value="badili">Badili</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="landUse">Current Land Use</Label>
-                    <Select>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select Use" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="commercial">Commercial</SelectItem>
-                        <SelectItem value="residential">Residential</SelectItem>
-                        <SelectItem value="industrial">Industrial</SelectItem>
-                        <SelectItem value="mixed">Mixed Use</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="col-span-2 space-y-2">
-                    <Label htmlFor="description">Detailed Location Description</Label>
-                    <Input id="description" placeholder="Building Name, Floor, Landmarks (e.g. Vision City Mega Mall, Level 2)" />
-                  </div>
-                </div>
-
-                <div className="grid gap-4 md:grid-cols-3 pt-4 border-t">
-                   <div className="space-y-2">
-                    <Label htmlFor="owner">Title Holder / Landlord</Label>
-                    <Input id="owner" placeholder="Name of Owner" />
-                  </div>
-                   <div className="space-y-2">
-                    <Label htmlFor="bins">Garbage Bins Required</Label>
-                    <Input id="bins" type="number" defaultValue="1" />
-                  </div>
-                   <div className="space-y-2">
-                    <Label htmlFor="collection">Collection Frequency</Label>
-                    <Select defaultValue="weekly">
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="weekly">Weekly</SelectItem>
-                        <SelectItem value="twice">Twice Weekly</SelectItem>
-                        <SelectItem value="daily">Daily</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button variant="ghost" onClick={() => setStep(1)}>Back</Button>
-                <Button onClick={() => setStep(3)}>
-                  Next Step <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
-              </CardFooter>
-            </Card>
-          )}
-
-          {step === 3 && (
-            <Card className="animate-in fade-in slide-in-from-bottom-4">
-              <CardHeader>
-                <CardTitle>Document Checklist</CardTitle>
-                <CardDescription>
-                  Upload digital copies of the required documents. 
-                  <span className="block text-amber-600 mt-1 text-xs font-medium">
-                    Note: All documents must be valid and clearly legible.
-                  </span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {license.checklist.map((item) => (
-                    <div key={item.id} className="flex items-start space-x-4 border p-4 rounded-lg bg-secondary/10">
-                      <Checkbox 
-                        id={item.id} 
-                        className="mt-1" 
-                        checked={uploads[item.id] || false}
-                        disabled
-                      />
-                      <div className="flex-1 space-y-1">
-                        <Label htmlFor={item.id} className="font-medium leading-none">
-                          {item.label}
-                          {item.required && <span className="text-destructive ml-1">*</span>}
-                        </Label>
-                        <p className="text-xs text-muted-foreground">
-                          Responsible: {item.responsible} {item.note && `• ${item.note}`}
-                        </p>
-                      </div>
-                      <Button 
-                        variant={uploads[item.id] ? "default" : "outline"} 
-                        size="sm"
-                        onClick={() => handleUpload(item.id)}
-                        disabled={uploading[item.id] || uploads[item.id]}
-                        className={uploads[item.id] ? "bg-green-600 hover:bg-green-700 text-white" : ""}
-                      >
-                        {uploading[item.id] ? (
-                          <>
-                            <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                            Uploading...
-                          </>
-                        ) : uploads[item.id] ? (
-                          <>
-                            <CheckCircle className="h-3 w-3 mr-2" />
-                            Attached
-                          </>
-                        ) : (
-                          <>
-                            <Upload className="h-3 w-3 mr-2" />
-                            Upload
-                          </>
-                        )}
+                    <div className="flex justify-end pt-4">
+                      <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+                        Next Step <ArrowRight className="ml-2 h-4 w-4" />
                       </Button>
                     </div>
-                  ))}
+                  </form>
+                </Form>
+              ) : step === "requirements" ? (
+                <RequirementsStep
+                  licenseTypeId={selectedDetails?.licenseTypeId}
+                  licenseName={currentLicenseType?.licenseName}
+                  onNext={onRequirementsSubmit}
+                  onBack={() => setStep("initial")}
+                />
+              ) : (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                  {renderForm()}
                 </div>
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button variant="ghost" onClick={() => setStep(2)}>Back</Button>
-                <Button onClick={() => setStep(4)}>
-                  Next Step <ChevronRight className="ml-2 h-4 w-4" />
-                </Button>
-              </CardFooter>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    </div>
+  );
+}
 
-          {step === 4 && (
-            <Card className="animate-in fade-in slide-in-from-bottom-4">
-              <CardHeader>
-                <CardTitle>Review Application</CardTitle>
-                <CardDescription>Please confirm that all information is correct before submitting.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-lg bg-secondary/20 p-4 mb-6">
-                  <div className="flex items-center gap-2 text-primary font-medium mb-2">
-                    <FileText className="h-4 w-4" />
-                    Application Summary
-                  </div>
-                  <dl className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <dt className="text-muted-foreground">License Type</dt>
-                      <dd className="font-medium">{license.name}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted-foreground">Form Type</dt>
-                      <dd className="font-medium">{license.formType}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted-foreground">Documents Attached</dt>
-                      <dd className="font-medium">{Object.keys(uploads).length} / {license.checklist.length}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-muted-foreground">Application Fee</dt>
-                      <dd className="font-medium">PGK 50.00</dd>
-                    </div>
-                  </dl>
-                </div>
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox id="terms" />
-                    <Label htmlFor="terms" className="text-sm">
-                      I declare that the information provided is true and correct to the best of my knowledge.
-                    </Label>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="flex justify-between">
-                <Button variant="ghost" onClick={() => setStep(3)}>Back</Button>
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={handleSubmit}>
-                  Submit Application
-                </Button>
-              </CardFooter>
-            </Card>
-          )}
+function RequirementsStep({ licenseTypeId, licenseName, onNext, onBack }: { licenseTypeId: string | undefined, licenseName: string | undefined, onNext: () => void, onBack: () => void }) {
+  const [acknowledged, setAcknowledged] = useState(false);
+
+  const { data: checklist, isLoading: isLoadingChecklist } = useQuery({
+    queryKey: [`/api/v1/license-types/${licenseTypeId}/checklist`],
+    enabled: !!licenseTypeId
+  });
+
+  const { data: special, isLoading: isLoadingSpecial } = useQuery({
+    queryKey: [`/api/v1/license-types/${licenseTypeId}/special-requirements`],
+    enabled: !!licenseTypeId
+  });
+
+  if (isLoadingChecklist || isLoadingSpecial) {
+    return <div className="p-8 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto" /><p>Loading requirements...</p></div>;
+  }
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+      <div className="border-b pb-4">
+        <h2 className="text-2xl font-bold">Requirements for {licenseName}</h2>
+        <p className="text-muted-foreground">Please review the following requirements before proceeding.</p>
+      </div>
+
+      <Tabs defaultValue="checklist" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="checklist">Checklist Documents</TabsTrigger>
+          <TabsTrigger value="special">Special Requirements</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="checklist" className="mt-4">
+          <ScrollArea className="h-[500px] border rounded-md p-4 bg-muted/20">
+            {Array.isArray(checklist) && (checklist as any[]).length > 0 ? (
+              <ul className="space-y-4">
+                {(checklist as any[]).map((item: any) => (
+                  <li key={item.id} className="flex gap-4 p-3 border-b border-muted last:border-0 bg-white dark:bg-slate-900 rounded-sm">
+                    <span className="flex items-center justify-center bg-blue-100 text-blue-700 font-bold rounded-full min-w-[28px] h-[28px] text-xs">
+                      {item.itemNumber}
+                    </span>
+                    <div>
+                      <p className="font-semibold text-base">{item.documentName}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded uppercase tracking-wider font-semibold">Authority</span>
+                        <p className="text-muted-foreground text-xs">{item.responsibleEntity}</p>
+                      </div>
+                      {item.requirementNote && (
+                        <div className="mt-2 p-2 bg-blue-50/50 dark:bg-blue-900/20 border-l-2 border-blue-400">
+                          <p className="text-xs italic text-blue-800 dark:text-blue-300">{item.requirementNote}</p>
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground p-4 text-center">No specific checklist documents found.</p>
+            )}
+          </ScrollArea>
+        </TabsContent>
+
+        <TabsContent value="special" className="mt-4">
+          <ScrollArea className="h-[500px] border rounded-md p-4 bg-blue-50/50 dark:bg-blue-950/10">
+            {Array.isArray(special) && (special as any[]).length > 0 ? (
+              <ul className="space-y-4">
+                {(special as any[]).map((item: any) => (
+                  <li key={item.id} className="p-4 bg-white dark:bg-slate-900 border-l-4 border-blue-500 rounded-r-md shadow-sm">
+                    <p className="font-bold text-base text-blue-900 dark:text-blue-100">{item.requirementName}</p>
+                    <div className="flex items-center gap-2 mt-1 mb-2">
+                      <span className="text-[10px] px-2 py-0.5 bg-blue-100 text-blue-700 rounded uppercase tracking-wider font-semibold">Authority</span>
+                      <p className="text-xs font-medium text-slate-600 dark:text-slate-400">{item.issuingAuthority}</p>
+                    </div>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{item.description}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-muted-foreground p-4 text-center">No special requirements found.</p>
+            )}
+          </ScrollArea>
+        </TabsContent>
+      </Tabs>
+
+      <div className="pt-6 border-t space-y-4">
+        <div className="flex items-center space-x-2 bg-yellow-50 dark:bg-yellow-950/20 p-4 rounded-md border border-yellow-200 dark:border-yellow-900">
+          <Checkbox
+            id="acknowledge"
+            checked={acknowledged}
+            onCheckedChange={(c) => setAcknowledged(c === true)}
+          />
+          <Label htmlFor="acknowledge" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            I acknowledge that I have read and understood the requirements listed above and will provide necessary documentation.
+          </Label>
+        </div>
+
+        <div className="flex justify-between">
+          <Button variant="outline" onClick={onBack}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
+          </Button>
+          <Button onClick={onNext} disabled={!acknowledged}>
+            Proceed to Application <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
         </div>
       </div>
-    </MainLayout>
+    </div>
   );
 }

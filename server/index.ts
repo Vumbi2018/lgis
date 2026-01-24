@@ -21,6 +21,7 @@ app.use(
 );
 
 app.use(express.urlencoded({ extended: false }));
+app.use("/uploads", express.static("uploads"));
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -49,7 +50,8 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        const jsonString = JSON.stringify(capturedJsonResponse);
+        logLine += ` :: ${jsonString.length > 200 ? jsonString.substring(0, 200) + "... [truncated]" : jsonString}`;
       }
 
       log(logLine);
@@ -61,13 +63,18 @@ app.use((req, res, next) => {
 
 (async () => {
   await registerRoutes(httpServer, app);
+  const { setupSwagger } = await import("./swagger");
+  setupSwagger(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
+    // Log the error for debugging
+    console.error(err);
+
     res.status(status).json({ message });
-    throw err;
+    // throw err;
   });
 
   // importantly only setup vite in development and after
@@ -80,16 +87,24 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
+  process.on('uncaughtException', (err) => {
+    log(`Uncaught Exception: ${err.message}`, 'error');
+    console.error(err);
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    log(`Unhandled Rejection at: ${promise} reason: ${reason}`, 'error');
+  });
+
   // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
+  // Other ports are firewalled. Default to 5001 if NOT specified.
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
+  const port = 5000;
   httpServer.listen(
     {
       port,
-      host: "0.0.0.0",
-      reusePort: true,
+      host: process.env.HOST || "0.0.0.0",
     },
     () => {
       log(`serving on port ${port}`);

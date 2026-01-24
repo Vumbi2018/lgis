@@ -7,14 +7,33 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+const getCouncilId = () => {
+  const storedOrg = localStorage.getItem('currentOrganization');
+  try {
+    return storedOrg ? JSON.parse(storedOrg)?.councilId : '';
+  } catch (e) {
+    return '';
+  }
+};
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const councilId = getCouncilId();
+
+  const headers: Record<string, string> = {
+    'x-council-id': councilId,
+  };
+
+  if (data) {
+    headers['Content-Type'] = 'application/json';
+  }
+
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -28,18 +47,22 @@ export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
-      credentials: "include",
-    });
+    async ({ queryKey }) => {
+      const councilId = getCouncilId();
+      const res = await fetch(queryKey.join("/") as string, {
+        credentials: "include",
+        headers: {
+          'x-council-id': councilId,
+        },
+      });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
+      if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+        return null;
+      }
 
-    await throwIfResNotOk(res);
-    return await res.json();
-  };
+      await throwIfResNotOk(res);
+      return await res.json();
+    };
 
 export const queryClient = new QueryClient({
   defaultOptions: {

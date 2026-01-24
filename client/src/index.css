@@ -1,159 +1,1238 @@
+@import "leaflet/dist/leaflet.css";
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
-@theme inline {
-  --radius-sm: calc(var(--radius) - 2px);
-  --radius-md: var(--radius);
-  --radius-lg: calc(var(--radius) + 2px);
-  --radius-xl: calc(var(--radius) + 4px);
+/* @theme block mapping internal tailwind to design tokens */
+@theme {
+  --radius-sm: var(--border-radius-input);
+  --radius-md: var(--border-radius-button);
+  --radius-lg: var(--border-radius-card);
+  --radius-xl: calc(var(--border-radius-card) * 1.5);
 
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
+  --color-background: var(--background-default);
+  --color-foreground: var(--foreground-default);
 
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
+  --color-card: var(--background-default);
+  --color-card-foreground: var(--foreground-default);
 
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-popover: var(--background-default);
+  --color-popover-foreground: var(--foreground-default);
 
-  --color-primary: hsl(var(--primary));
+  --color-primary: var(--accent-primary-default);
   --color-primary-foreground: hsl(var(--primary-foreground));
 
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary: var(--background-higher);
+  --color-secondary-foreground: var(--foreground-dimmer);
 
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted: var(--background-higher);
+  --color-muted-foreground: var(--foreground-dimmest);
 
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent: var(--accent-primary-dimmest);
+  --color-accent-foreground: var(--accent-primary-strongest);
 
-  --color-destructive: hsl(var(--destructive));
+  --color-sidebar: var(--sidebar-background, var(--background-highest));
+  --color-sidebar-foreground: var(--sidebar-foreground, var(--foreground-default));
+  --color-header: var(--header-background, var(--background-default));
+  --color-header-foreground: var(--header-foreground, var(--foreground-default));
+  --color-card: var(--card-background, var(--background-default));
+  --color-card-foreground: var(--foreground-default);
+
+  --color-destructive: var(--accent-negative-default);
   --color-destructive-foreground: hsl(var(--destructive-foreground));
 
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
+  --color-accent-primary-default: var(--accent-primary-default);
+  --color-accent-primary-stronger: var(--accent-primary-stronger);
+  --color-accent-primary-strongest: var(--accent-primary-strongest);
+  --color-accent-primary-dimmer: var(--accent-primary-dimmer);
+  --color-accent-primary-dimmest: var(--accent-primary-dimmest);
 
-  --color-chart-1: hsl(var(--chart-1));
-  --color-chart-2: hsl(var(--chart-2));
-  --color-chart-3: hsl(var(--chart-3));
-  --color-chart-4: hsl(var(--chart-4));
-  --color-chart-5: hsl(var(--chart-5));
+  --color-border: var(--outline-dimmer);
+  --color-input: var(--outline-dimmer);
+  --color-ring: var(--accent-primary-default);
 
-  --color-sidebar: hsl(var(--sidebar));
-  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
-  --color-sidebar-primary: hsl(var(--sidebar-primary));
-  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
-  --color-sidebar-accent: hsl(var(--sidebar-accent));
-  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
-  --color-sidebar-border: hsl(var(--sidebar-border));
-  --color-sidebar-ring: hsl(var(--sidebar-ring));
+  --color-background-root: var(--background-root);
+  --color-background-default: var(--background-default);
+  --color-background-higher: var(--background-higher);
+  --color-background-highest: var(--background-highest);
 
-  --font-sans: "Public Sans", "Inter", sans-serif;
-  --font-display: "Inter", sans-serif;
+  --color-foreground-default: var(--foreground-default);
+  --color-foreground-dimmer: var(--foreground-dimmer);
+  --color-foreground-dimmest: var(--foreground-dimmest);
+
+  --color-outline-dimmer: var(--outline-dimmer);
+  --color-outline-default: var(--outline-default);
+
+  --color-accent-positive-dimmer: var(--accent-positive-dimmer);
+  --color-accent-warning-dimmer: var(--accent-warning-dimmer);
+
+  --color-accent-negative-default: var(--accent-negative-default);
+  --color-accent-negative-dimmer: var(--accent-negative-dimmer);
+  --color-accent-negative-dimmest: var(--accent-negative-dimmest);
+
+  --color-positive: var(--accent-positive-default);
+  --color-positive-dimmer: var(--accent-positive-dimmer);
+  --color-positive-dimmest: var(--accent-positive-dimmest);
+
+  --color-warning: var(--accent-warning-default);
+  --color-warning-dimmer: var(--accent-warning-dimmer);
+  --color-warning-dimmest: var(--accent-warning-dimmest);
+
+  --color-negative: var(--accent-negative-default);
+  --color-negative-dimmer: var(--accent-negative-dimmer);
+  --color-negative-dimmest: var(--accent-negative-dimmest);
+
+  --width-sidebar: var(--AppLayout--sidebar-width-open);
+  --height-header: var(--AppLayout--header-height);
+
+  --font-sans: var(--font-family-default);
+  --font-mono: var(--font-family-code);
+
+  --animate-spin-slow: spin 8s linear infinite;
 }
-
-/* NCDC THEME */
-/* Professional Government: Black, Yellow, and Official Greys */
 
 :root {
-  /* Base */
-  --background: 0 0% 98%; /* Clean White/Grey */
-  --foreground: 0 0% 10%; /* Almost Black */
+  /* ============================================================================
+     LGIS FORMAL GOVERNMENT DESIGN SYSTEM
+     National Capital District Commission
+     Version 2.0 - January 2026
+     
+     Design Intent: Authoritative, auditable, high-contrast government UI
+     Accessibility: WCAG 2.2 AA compliant
+     ============================================================================ */
 
-  /* Components */
-  --card: 0 0% 100%;
-  --card-foreground: 0 0% 10%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 0 0% 10%;
+  /* ---------------------------------------------------------------------------
+     1. CORE UI COLOR TOKENS (Semantic, No Hard-Coding)
+     --------------------------------------------------------------------------- */
 
-  /* Brand Colors - NCDC Identity */
-  --primary: 0 0% 10%; /* Black (Authoritative) */
-  --primary-foreground: 48 100% 50%; /* NCDC Yellow Text */
+  /* 1.1 Brand Colors */
+  --color-brand-primary: #F4C400;
+  /* LGIS Yellow - CTA, highlights */
+  --color-brand-primary-hover: #DDB200;
+  /* Hover state for yellow */
+  --color-brand-primary-active: #C29F00;
+  /* Active/pressed state */
 
-  --secondary: 48 100% 50%; /* NCDC Yellow (Backgrounds/Accents) */
-  --secondary-foreground: 0 0% 10%; /* Black Text on Yellow */
+  /* 1.2 UI Foundation Colors */
+  --color-ui-black: #0F0F0F;
+  /* Sidebar, headers, primary text */
+  --color-ui-black-lighter: #1C1C1C;
+  /* Hover state for black backgrounds */
+  --color-ui-white: #FFFFFF;
+  /* Cards, content surfaces */
+  --color-ui-background: #FFF2B2;
+  /* Page workspace background */
+  --color-ui-border: #E5E5E5;
+  /* Dividers, card borders */
 
-  --muted: 0 0% 94%;
-  --muted-foreground: 0 0% 40%;
+  /* 1.3 Text/Foreground Colors */
+  --color-ui-text-primary: #0F0F0F;
+  /* Primary text on light backgrounds */
+  --color-ui-text-secondary: #6B6B6B;
+  /* Secondary/meta text */
+  --color-ui-text-tertiary: #9E9E9E;
+  /* Disabled/placeholder text */
+  --color-ui-text-inverse: #FFFFFF;
+  /* Text on dark backgrounds */
 
-  --accent: 354 84% 57%; /* PNG Red (Highlights) */
-  --accent-foreground: 0 0% 100%;
+  /* 1.4 Interactive States */
+  --color-ui-inactive: #1C1C1C;
+  /* Inactive sidebar items */
+  --color-ui-hover: #F5F5F5;
+  /* Hover on light backgrounds */
+  --color-ui-focus-ring: #F4C400;
+  /* Focus indicators */
 
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
+  /* ---------------------------------------------------------------------------
+     2. STATUS & WORKFLOW COLORS (Government-Grade)
+     --------------------------------------------------------------------------- */
 
-  /* UI Elements */
-  --border: 0 0% 90%;
-  --input: 0 0% 90%;
-  --ring: 48 100% 50%; /* Yellow Focus Rings */
+  --color-status-success: #0D7A2C;
+  /* Approved, completed (DARK green) */
+  --color-status-success-bg: #E6F4EA;
+  /* Success background */
+  --color-status-success-border: #9DD3AA;
+  /* Success border */
 
-  --radius: 0.25rem; /* 4px - Sharp, Official look */
+  --color-status-warning: #FFD84D;
+  /* Pending, review (yellow) */
+  --color-status-warning-bg: #FEF7E0;
+  /* Warning background */
+  --color-status-warning-border: #F4C400;
+  /* Warning border */
 
-  /* Sidebar - Dark Professional */
-  --sidebar: 0 0% 10%; /* Black Sidebar */
-  --sidebar-foreground: 0 0% 90%;
-  --sidebar-primary: 48 100% 50%; /* Yellow Active State */
-  --sidebar-primary-foreground: 0 0% 10%;
-  --sidebar-accent: 0 0% 15%; /* Slightly lighter black */
-  --sidebar-accent-foreground: 48 100% 50%; /* Yellow text */
-  --sidebar-border: 0 0% 20%;
-  --sidebar-ring: 48 100% 50%;
+  --color-status-error: #D93025;
+  /* Rejected, invalid (red) */
+  --color-status-error-bg: #FCE8E6;
+  /* Error background */
+  --color-status-error-border: #F28B82;
+  /* Error border */
 
-  /* Charts */
-  --chart-1: 0 0% 10%;     /* Black */
-  --chart-2: 48 100% 50%;  /* Yellow */
-  --chart-3: 354 70% 54%;  /* Red */
-  --chart-4: 0 0% 40%;     /* Grey */
-  --chart-5: 221 83% 53%;  /* Blue (Complimentary) */
-}
+  --color-status-info: #1A73E8;
+  /* Informational */
+  --color-status-info-bg: #E8F0FE;
+  /* Info background */
+  --color-status-info-border: #AECBFA;
+  /* Info border */
 
-.dark {
-  --background: 0 0% 10%;
-  --foreground: 0 0% 90%;
+  --color-status-neutral: #5F6368;
+  /* Draft, inactive */
+  --color-status-neutral-bg: #F1F3F4;
+  /* Neutral background */
+  --color-status-neutral-border: #DADCE0;
+  /* Neutral border */
 
-  --card: 0 0% 13%;
-  --card-foreground: 0 0% 90%;
-  --popover: 0 0% 13%;
-  --popover-foreground: 0 0% 90%;
+  /* ---------------------------------------------------------------------------
+     3. COMPONENT-SPECIFIC TOKENS
+     GOLD, BLACK & WHITE PROMINENCE THEME
+     --------------------------------------------------------------------------- */
 
-  --primary: 48 100% 50%; /* Yellow Primary in Dark Mode */
-  --primary-foreground: 0 0% 10%;
+  /* 3.1 Sidebar Navigation (BLACK BG, WHITE TEXT, GOLD ACTIVE) */
+  --sidebar-background: #0F0F0F;
+  /* Black sidebar */
+  --sidebar-foreground: #FFFFFF;
+  /* White text */
+  --sidebar-item-active-bg: #F4C400;
+  /* GOLD active background */
+  --sidebar-item-active-text: #0F0F0F;
+  /* Black text on gold */
+  --sidebar-item-hover-bg: #1C1C1C;
+  /* Subtle hover */
+  --sidebar-item-inactive-text: #FFFFFF;
+  /* White (changed from gray) */
+  --sidebar-icon-active: #F4C400;
+  /* GOLD active icons */
+  --sidebar-icon-inactive: #FFFFFF;
+  /* White inactive icons */
+  --sidebar-border: #F4C400;
+  /* GOLD border accent */
 
-  --secondary: 0 0% 20%;
-  --secondary-foreground: 0 0% 90%;
+  /* 3.2 Page Headers (GOLD BG, BLACK TEXT) */
+  --header-background: #F4C400;
+  /* GOLD header background */
+  --header-foreground: #0F0F0F;
+  /* Black text on gold */
+  --header-border: #DDB200;
+  /* Darker gold border */
+  --header-utility-icon: #0F0F0F;
+  /* Black icons */
 
-  --muted: 0 0% 20%;
-  --muted-foreground: 0 0% 60%;
+  /* 3.3 Page Workspace (LIGHT YELLOW BG, BLACK TEXT, WHITE CARDS) */
+  --background-root: #FFF2B2;
+  /* Light yellow workspace */
+  --background-default: #FFFFFF;
+  /* White cards/containers */
+  --background-higher: #FFFEF7;
+  /* Elevated white */
+  --background-highest: #F4C400;
+  /* GOLD for highest elevation */
+  --background-overlay: rgba(15, 15, 15, 0.85);
+  /* Dark overlay */
 
-  --accent: 354 70% 54%;
-  --accent-foreground: 0 0% 100%;
+  /* 3.4 Card Components (WHITE CARDS, BLACK TEXT) */
+  --card-background: #FFFFFF;
+  /* White cards */
+  --card-border: #F4C400;
+  /* GOLD borders */
+  --card-title-text: #0F0F0F;
+  /* Black titles */
+  --card-metadata-text: #6B6B6B;
+  /* Gray metadata */
+  --card-shadow: 0px 2px 8px rgba(244, 196, 0, 0.15),
+    0px 1px 3px rgba(15, 15, 15, 0.1);
+  /* Gold-tinted shadow */
 
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 90%;
+  /* 3.5 Small Cards & Timelines (BLACK BG, GOLD TEXT) */
+  --small-card-background: #0F0F0F;
+  /* Black background */
+  --small-card-text: #F4C400;
+  /* GOLD text */
+  --small-card-border: #F4C400;
+  /* GOLD border */
+  --small-card-icon: #F4C400;
+  /* GOLD icons */
 
-  --border: 0 0% 20%;
-  --input: 0 0% 20%;
-  --ring: 48 100% 50%;
+  /* 3.6 Timeline Components (BLACK BG, GOLD ACCENTS) */
+  --timeline-background: #0F0F0F;
+  /* Black timeline */
+  --timeline-active-dot: #F4C400;
+  /* GOLD active dot */
+  --timeline-completed-dot: #FFFFFF;
+  /* White completed */
+  --timeline-future-dot: #6B6B6B;
+  /* Gray future */
+  --timeline-line: #F4C400;
+  /* GOLD connecting line */
+  --timeline-text: #FFFFFF;
+  /* White text */
 
-  --sidebar: 0 0% 5%;
-  --sidebar-foreground: 0 0% 80%;
-  --sidebar-primary: 48 100% 50%;
-  --sidebar-primary-foreground: 0 0% 10%;
-  --sidebar-accent: 0 0% 15%;
-  --sidebar-accent-foreground: 48 100% 50%;
-  --sidebar-border: 0 0% 20%;
-  --sidebar-ring: 48 100% 50%;
+  /* 3.7 Button Styles (GOLD PRIMARY, BLACK SECONDARY) */
+  --btn-primary-bg: #F4C400;
+  /* GOLD primary button */
+  --btn-primary-text: #0F0F0F;
+  /* Black text */
+  --btn-primary-hover: #DDB200;
+  /* Darker gold hover */
+  --btn-primary-active: #C29F00;
+  /* Even darker active */
+  --btn-primary-focus-ring: #0F0F0F;
+  /* Black focus ring */
+
+  --btn-secondary-bg: transparent;
+  /* Transparent unselected */
+  --btn-secondary-text: #0F0F0F;
+  /* Black text */
+  --btn-secondary-border: #0F0F0F;
+  /* Black border */
+  --btn-secondary-hover-bg: #F5F5F5;
+  /* Light gray hover */
+
+  --btn-success-bg: #0D7A2C;
+  /* DARK GREEN for success */
+  --btn-success-text: #FFFFFF;
+  --btn-success-hover: #0A5F22;
+  /* Even darker green hover */
+
+  --btn-destructive-bg: #D93025;
+  /* Keep red for destructive */
+  --btn-destructive-text: #FFFFFF;
+  --btn-destructive-hover: #B71C1C;
+
+  --btn-warning-bg: #F4C400;
+  /* GOLD for warnings */
+  --btn-warning-text: #0F0F0F;
+  /* Black text */
+  --btn-warning-hover: #DDB200;
+
+  /* 3.8 Form Inputs (WHITE BG, BLACK TEXT, GOLD FOCUS) */
+  --input-bg: #FFFFFF;
+  /* White inputs */
+  --input-border: #E5E5E5;
+  /* Light gray border */
+  --input-border-focus: #F4C400;
+  /* GOLD focus border */
+  --input-text: #0F0F0F;
+  /* Black text */
+  --input-placeholder: #9E9E9E;
+  /* Gray placeholder */
+  --input-disabled-bg: #F5F5F5;
+  --input-disabled-text: #9E9E9E;
+
+  /* 3.9 Badge/Tag Components (STATUS COLORS) */
+  --badge-approved-bg: #0D7A2C;
+  /* DARK GREEN approved */
+  --badge-approved-text: #FFFFFF;
+  --badge-pending-bg: #F4C400;
+  /* GOLD pending */
+  --badge-pending-text: #0F0F0F;
+  /* Black text */
+  --badge-rejected-bg: #D93025;
+  /* Red rejected */
+  --badge-rejected-text: #FFFFFF;
+  --badge-draft-bg: #0F0F0F;
+  /* Black draft */
+  --badge-draft-text: #F4C400;
+  /* GOLD text */
+
+  /* ---------------------------------------------------------------------------
+     4. LEGACY COMPATIBILITY TOKENS (Map old system to new)
+     --------------------------------------------------------------------------- */
+
+  --foreground-default: var(--color-ui-text-primary);
+  --foreground-dimmer: var(--color-ui-text-secondary);
+  --foreground-dimmest: var(--color-ui-text-tertiary);
+
+  --outline-dimmest: #F1F1F1;
+  --outline-dimmer: var(--color-ui-border);
+  --outline-default: #DADCE0;
+  --outline-stronger: #9E9E9E;
+  --outline-strongest: #6B6B6B;
+
+  --accent-primary-default: var(--color-brand-primary);
+  --accent-primary-dimmer: #FFE066;
+  --accent-primary-dimmest: #FFF2B2;
+  --accent-primary-stronger: var(--color-brand-primary-hover);
+  --accent-primary-strongest: var(--color-brand-primary-active);
+
+  --accent-positive-default: var(--color-status-success);
+  --accent-positive-dimmer: #4CAF50;
+  --accent-positive-dimmest: var(--color-status-success-bg);
+
+  --accent-warning-default: #F9AB00;
+  --accent-warning-dimmer: var(--color-status-warning);
+  --accent-warning-dimmest: var(--color-status-warning-bg);
+
+  --accent-negative-default: var(--color-status-error);
+  --accent-negative-dimmer: #F28B82;
+  --accent-negative-dimmest: var(--color-status-error-bg);
+
+  /* ---------------------------------------------------------------------------
+     5. TYPOGRAPHY SYSTEM (Government-Grade)
+     --------------------------------------------------------------------------- */
+
+  --font-family-default: "Inter", "SF Pro Display", system-ui, -apple-system, sans-serif;
+  --font-family-code: "IBM Plex Mono", "Consolas", monospace;
+
+  --font-size-small: 12px;
+  --font-size-default: 14px;
+  --font-size-subhead-default: 16px;
+  --font-size-subhead-big: 20px;
+  --font-size-header-default: 24px;
+  --font-size-header-big: 32px;
+  --font-size-display: 40px;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-small: 1.5;
+  --line-height-default: 1.5;
+  --line-height-subhead-default: 1.4;
+  --line-height-header-default: 1.3;
+  --line-height-header-big: 1.2;
+
+  /* ---------------------------------------------------------------------------
+     6. SPACING SYSTEM (8-Point Grid)
+     --------------------------------------------------------------------------- */
+
+  --space-0: 0px;
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-20: 20px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-64: 64px;
+  --space-80: 80px;
+  --space-96: 96px;
+
+  /* ---------------------------------------------------------------------------
+     7. BORDER RADIUS SYSTEM (Minimal for Government UI)
+     --------------------------------------------------------------------------- */
+
+  --border-radius-none: 0px;
+  --border-radius-sm: 2px;
+  --border-radius-default: 4px;
+  --border-radius-md: 6px;
+  --border-radius-lg: 8px;
+  --border-radius-full: 9999px;
+
+  /* Semantic Radius Tokens */
+  --border-radius-global: 4px;
+  --border-radius-button: var(--border-radius-default);
+  --border-radius-card: var(--border-radius-lg);
+  --border-radius-input: var(--border-radius-default);
+  --border-radius-badge: var(--border-radius-default);
+
+  /* ---------------------------------------------------------------------------
+     8. SHADOW & ELEVATION SYSTEM (Subtle, Professional)
+     --------------------------------------------------------------------------- */
+
+  --shadow-none: none;
+  --shadow-sm: 0px 1px 2px rgba(15, 15, 15, 0.08);
+  --shadow-md: 0px 2px 4px rgba(15, 15, 15, 0.12);
+  --shadow-lg: 0px 4px 8px rgba(15, 15, 15, 0.16);
+  --shadow-xl: 0px 8px 16px rgba(15, 15, 15, 0.20);
+
+  /* Legacy shadow tokens */
+  --shadow-0: var(--shadow-sm);
+  --shadow-1: var(--shadow-md);
+  --shadow-2: var(--shadow-lg);
+  --shadow-3: var(--shadow-xl);
+
+  /* ---------------------------------------------------------------------------
+     9. LAYOUT TOKENS
+     --------------------------------------------------------------------------- */
+
+  --AppLayout--header-height: 64px;
+  --AppLayout--sidebar-width-open: 240px;
+  --AppLayout--sidebar-width-closed: 64px;
+
+  /* Compatibility variables for components that might still use them */
+  --button-outline: #0F0F0F;
+  --secondary-border: #0F0F0F;
 }
 
 @layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    /* Pure Black */
+
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 0%;
+    /* Black */
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 0%;
+    /* Black */
+
+    --primary: 45 100% 50%;
+    --primary-foreground: 0 0% 0%;
+    /* Black */
+
+    --secondary: 0 0% 96.1%;
+    --secondary-foreground: 0 0% 0%;
+    /* Black */
+
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 20%;
+    /* Darker gray for muted, but close to black */
+
+    --accent: 0 0% 96.1%;
+    --accent-foreground: 0 0% 0%;
+    /* Black */
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 0 0% 0%;
+    /* Black Ring */
+
+    --radius: 0.5rem;
+  }
+
+  /* ... darkMode ... */
+
   * {
     @apply border-border;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
   }
+
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply bg-background text-foreground;
+    color: #0F0F0F !important;
+    /* Force Black Body Text */
+    font-family: var(--font-family-default);
+    font-size: var(--font-size-default);
+    line-height: var(--line-height-default);
+    font-weight: var(--font-weight-regular);
   }
+
+  h1,
+  .h1 {
+    font-size: var(--font-size-header-big);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-header-big);
+  }
+
+  h2,
+  .h2 {
+    font-size: var(--font-size-header-default);
+    font-weight: var(--font-weight-bold);
+    line-height: var(--line-height-header-default);
+  }
+
+  h3,
+  .h3 {
+    font-size: var(--font-size-subhead-big);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-subhead-default);
+  }
+
+  h4,
+  .h4 {
+    font-size: var(--font-size-subhead-default);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--line-height-default);
+  }
+
+  /* 10. Scrollbars (Mandatory Consistency) */
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--background-default);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--background-highest);
+    border: 3px solid var(--background-default);
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--outline-stronger);
+  }
+
+  /* For Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--background-highest) var(--background-default);
+  }
+
+  /* Focus states */
+  :focus-visible {
+    outline: 2px solid var(--color-ui-focus-ring);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+
+  /* Government-Grade Card Component */
+  .gov-card {
+    background-color: var(--card-background);
+    border: 1px solid var(--card-border);
+    border-radius: var(--border-radius-card);
+    box-shadow: var(--card-shadow);
+    padding: var(--space-24);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  }
+
+  .gov-card:hover {
+    border-color: var(--color-ui-text-secondary);
+    box-shadow: var(--shadow-md);
+  }
+
+  /* Government Button - Primary (Black) */
+  .gov-btn-primary {
+    background-color: var(--btn-primary-bg);
+    color: var(--btn-primary-text);
+    border-radius: var(--border-radius-button);
+    padding: var(--space-12) var(--space-24);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-default);
+    transition: background-color 0.2s ease;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-8);
+  }
+
+  .gov-btn-primary:hover {
+    background-color: var(--btn-primary-hover);
+  }
+
+  .gov-btn-primary:active {
+    background-color: var(--btn-primary-active);
+  }
+
+  .gov-btn-primary:focus-visible {
+    outline: 2px solid var(--btn-primary-focus-ring);
+    outline-offset: 2px;
+  }
+
+  .gov-btn-primary:disabled {
+    background-color: var(--color-ui-text-tertiary);
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  /* Government Button - Secondary (Outline) */
+  .gov-btn-secondary {
+    background-color: var(--btn-secondary-bg);
+    color: var(--btn-secondary-text);
+    border: 1px solid var(--btn-secondary-border);
+    border-radius: var(--border-radius-button);
+    padding: var(--space-12) var(--space-24);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-default);
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-8);
+  }
+
+  .gov-btn-secondary:hover {
+    background-color: var(--btn-secondary-hover-bg);
+  }
+
+  /* Government Button - Success (Green) */
+  .gov-btn-success {
+    background-color: var(--btn-success-bg);
+    color: var(--btn-success-text);
+    border-radius: var(--border-radius-button);
+    padding: var(--space-12) var(--space-24);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-default);
+    transition: background-color 0.2s ease;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-8);
+  }
+
+  .gov-btn-success:hover {
+    background-color: var(--btn-success-hover);
+  }
+
+  /* Government Button - Destructive (Red) */
+  .gov-btn-destructive {
+    background-color: var(--btn-destructive-bg);
+    color: var(--btn-destructive-text);
+    border-radius: var(--border-radius-button);
+    padding: var(--space-12) var(--space-24);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-default);
+    transition: background-color 0.2s ease;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-8);
+  }
+
+  .gov-btn-destructive:hover {
+    background-color: var(--btn-destructive-hover);
+  }
+
+  /* Government Button - Warning (Yellow) */
+  .gov-btn-warning {
+    background-color: var(--btn-warning-bg);
+    color: var(--btn-warning-text);
+    border-radius: var(--border-radius-button);
+    padding: var(--space-12) var(--space-24);
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-default);
+    transition: background-color 0.2s ease;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-8);
+  }
+
+  .gov-btn-warning:hover {
+    background-color: var(--btn-warning-hover);
+  }
+
+  /* Status Badges - Government-Grade */
+  .gov-badge-approved {
+    background-color: var(--badge-approved-bg);
+    color: var(--badge-approved-text);
+    padding: var(--space-4) var(--space-12);
+    border-radius: var(--border-radius-badge);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .gov-badge-pending {
+    background-color: var(--badge-pending-bg);
+    color: var(--badge-pending-text);
+    padding: var(--space-4) var(--space-12);
+    border-radius: var(--border-radius-badge);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .gov-badge-rejected {
+    background-color: var(--badge-rejected-bg);
+    color: var(--badge-rejected-text);
+    padding: var(--space-4) var(--space-12);
+    border-radius: var(--border-radius-badge);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  .gov-badge-draft {
+    background-color: var(--badge-draft-bg);
+    color: var(--badge-draft-text);
+    padding: var(--space-4) var(--space-12);
+    border-radius: var(--border-radius-badge);
+    font-size: var(--font-size-small);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+
+  /* Page Header Component */
+  .gov-page-header {
+    background-color: var(--header-background);
+    border-bottom: 1px solid var(--header-border);
+    padding: var(--space-24) var(--space-32);
+    margin-bottom: var(--space-32);
+  }
+
+  .gov-page-title {
+    font-size: var(--font-size-header-big);
+    font-weight: var(--font-weight-bold);
+    color: var(--header-foreground);
+    margin: 0;
+  }
+
+  /* Form Input - Government-Grade */
+  .gov-input {
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: var(--border-radius-input);
+    padding: var(--space-12) var(--space-16);
+    font-size: var(--font-size-default);
+    color: var(--input-text);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    width: 100%;
+  }
+
+  .gov-input::placeholder {
+    color: var(--input-placeholder);
+  }
+
+  .gov-input:focus {
+    outline: none;
+    border-color: var(--input-border-focus);
+    box-shadow: 0 0 0 3px rgba(244, 196, 0, 0.1);
+  }
+
+  .gov-input:disabled {
+    background-color: var(--input-disabled-bg);
+    color: var(--input-disabled-text);
+    cursor: not-allowed;
+  }
+
+  /* Sidebar Navigation Item */
+  .gov-sidebar-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    padding: var(--space-12) var(--space-16);
+    border-radius: var(--border-radius-default);
+    color: var(--sidebar-foreground);
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+  }
+
+  .gov-sidebar-item:hover {
+    background-color: var(--sidebar-item-hover-bg);
+  }
+
+  .gov-sidebar-item.active {
+    background-color: var(--sidebar-item-active-bg);
+    color: var(--sidebar-item-active-text);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .gov-sidebar-item.inactive {
+    color: var(--sidebar-item-inactive-text);
+  }
+
+  /* Workflow Progress Timeline */
+  .gov-timeline-step {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+  }
+
+  .gov-timeline-step.completed .gov-timeline-dot {
+    background-color: var(--color-status-success);
+    border-color: var(--color-status-success);
+  }
+
+  .gov-timeline-step.current .gov-timeline-dot {
+    background-color: var(--color-brand-primary);
+    border-color: var(--color-brand-primary);
+  }
+
+  .gov-timeline-step.future .gov-timeline-dot {
+    background-color: transparent;
+    border-color: var(--color-ui-text-secondary);
+  }
+
+  .gov-timeline-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+  }
+
+  /* Alert/Notification Boxes */
+  .gov-alert-success {
+    background-color: var(--color-status-success-bg);
+    border-left: 4px solid var(--color-status-success);
+    padding: var(--space-16);
+    border-radius: var(--border-radius-default);
+  }
+
+  .gov-alert-warning {
+    background-color: var(--color-status-warning-bg);
+    border-left: 4px solid var(--color-status-warning);
+    padding: var(--space-16);
+    border-radius: var(--border-radius-default);
+  }
+
+  .gov-alert-error {
+    background-color: var(--color-status-error-bg);
+    border-left: 4px solid var(--color-status-error);
+    padding: var(--space-16);
+    border-radius: var(--border-radius-default);
+  }
+
+  .gov-alert-info {
+    background-color: var(--color-status-info-bg);
+    border-left: 4px solid var(--color-status-info);
+    padding: var(--space-16);
+    border-radius: var(--border-radius-default);
+  }
+
+  /* Data Table - Government-Grade */
+  .gov-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background-color: var(--card-background);
+    border: 1px solid var(--card-border);
+    border-radius: var(--border-radius-card);
+    overflow: hidden;
+  }
+
+  .gov-table thead {
+    background-color: var(--background-higher);
+  }
+
+  .gov-table th {
+    padding: var(--space-12) var(--space-16);
+    text-align: left;
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--font-size-small);
+    color: var(--color-ui-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--card-border);
+  }
+
+  .gov-table td {
+    padding: var(--space-16);
+    border-bottom: 1px solid var(--card-border);
+    font-size: var(--font-size-default);
+    color: var(--color-ui-text-primary);
+  }
+
+  .gov-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .gov-table tbody tr:hover {
+    background-color: var(--background-higher);
+  }
+
+  /* =========================================================================
+     BOLD GOLD, BLACK & WHITE COMPONENTS
+     ========================================================================= */
+
+  /* Small Card - Black Background with Gold Text */
+  .gov-small-card {
+    background-color: var(--small-card-background);
+    /* Black */
+    border: 2px solid var(--small-card-border);
+    /* Gold border */
+    border-radius: var(--border-radius-card);
+    padding: var(--space-16);
+    color: var(--small-card-text);
+    /* Gold text */
+    box-shadow: 0px 2px 8px rgba(244, 196, 0, 0.2);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .gov-small-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0px 4px 12px rgba(244, 196, 0, 0.3);
+  }
+
+  .gov-small-card-title {
+    font-size: var(--font-size-subhead-default);
+    font-weight: var(--font-weight-semibold);
+    color: var(--small-card-text);
+    /* Gold */
+    margin-bottom: var(--space-8);
+  }
+
+  .gov-small-card-value {
+    font-size: var(--font-size-header-big);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-brand-primary);
+    /* Gold */
+  }
+
+  /* Page Header - Gold Background with Black Text */
+  .gov-page-header {
+    background-color: var(--header-background);
+    /* GOLD */
+    color: var(--header-foreground);
+    /* Black */
+    border-bottom: 3px solid var(--header-border);
+    /* Darker gold */
+    padding: var(--space-24) var(--space-32);
+    margin-bottom: var(--space-32);
+    box-shadow: 0px 4px 12px rgba(244, 196, 0, 0.25);
+  }
+
+  .gov-page-header h1,
+  .gov-page-header h2 {
+    color: var(--header-foreground);
+    /* Black on gold */
+    margin: 0;
+  }
+
+  /* Timeline Component - Black with Gold Accents */
+  .gov-timeline {
+    background-color: var(--timeline-background);
+    /* Black */
+    border: 2px solid var(--timeline-line);
+    /* Gold border */
+    border-radius: var(--border-radius-card);
+    padding: var(--space-24);
+  }
+
+  .gov-timeline-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-16);
+    margin-bottom: var(--space-24);
+    position: relative;
+    color: var(--timeline-text);
+    /* White text */
+  }
+
+  .gov-timeline-item:last-child {
+    margin-bottom: 0;
+  }
+
+  /* Timeline connecting line */
+  .gov-timeline-item:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 32px;
+    bottom: -24px;
+    width: 2px;
+    background-color: var(--timeline-line);
+    /* Gold line */
+  }
+
+  .gov-timeline-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--font-weight-bold);
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Timeline dot states */
+  .gov-timeline-dot.completed {
+    background-color: var(--timeline-completed-dot);
+    /* White */
+    border: 2px solid var(--timeline-line);
+    /* Gold border */
+    color: var(--timeline-background);
+    /* Black check */
+  }
+
+  .gov-timeline-dot.active {
+    background-color: var(--timeline-active-dot);
+    /* GOLD */
+    border: 2px solid var(--timeline-active-dot);
+    color: var(--timeline-background);
+    /* Black */
+    box-shadow: 0 0 12px rgba(244, 196, 0, 0.6);
+  }
+
+  .gov-timeline-dot.future {
+    background-color: transparent;
+    border: 2px solid var(--timeline-future-dot);
+    /* Gray */
+    color: var(--timeline-future-dot);
+  }
+
+  .gov-timeline-content {
+    flex: 1;
+  }
+
+  .gov-timeline-title {
+    font-size: var(--font-size-subhead-default);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-brand-primary);
+    /* GOLD title */
+    margin-bottom: var(--space-4);
+  }
+
+  .gov-timeline-description {
+    font-size: var(--font-size-default);
+    color: var(--timeline-text);
+    /* White description */
+    line-height: var(--line-height-default);
+  }
+
+  .gov-timeline-date {
+    font-size: var(--font-size-small);
+    color: var(--color-ui-text-secondary);
+    /* Gray date */
+    margin-top: var(--space-4);
+  }
+
+  /* Card with Gold Border (for emphasis) */
+  .gov-card-gold {
+    background-color: var(--card-background);
+    /* White */
+    border: 3px solid var(--color-brand-primary);
+    /* GOLD border */
+    border-radius: var(--border-radius-card);
+    padding: var(--space-24);
+    box-shadow: 0px 4px 16px rgba(244, 196, 0, 0.2);
+  }
+
+  .gov-card-gold:hover {
+    box-shadow: 0px 6px 20px rgba(244, 196, 0, 0.3);
+    transform: translateY(-2px);
+    transition: all 0.3s ease;
+  }
+
+  /* Stats Card - Black with Gold Highlights */
+  .gov-stats-card {
+    background-color: var(--small-card-background);
+    /* Black */
+    border-left: 4px solid var(--color-brand-primary);
+    /* Gold accent */
+    border-radius: var(--border-radius-default);
+    padding: var(--space-20);
+    color: var(--color-brand-primary);
+    /* Gold text */
+  }
+
+  .gov-stats-card-label {
+    font-size: var(--font-size-small);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--color-ui-white);
+    /* White label */
+    margin-bottom: var(--space-8);
+  }
+
+  .gov-stats-card-value {
+    font-size: var(--font-size-header-big);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-brand-primary);
+    /* GOLD value */
+  }
+
+  .gov-stats-card-change {
+    font-size: var(--font-size-small);
+    margin-top: var(--space-4);
+    color: var(--color-ui-white);
+    /* White */
+  }
+
+  .gov-stats-card-change.positive {
+    color: var(--color-status-success);
+    /* Green */
+  }
+
+  .gov-stats-card-change.negative {
+    color: var(--color-status-error);
+    /* Red */
+  }
+
+  /* Section Header - Gold accent on white */
+  .gov-section-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    padding-bottom: var(--space-16);
+    border-bottom: 3px solid var(--color-brand-primary);
+    /* GOLD border */
+    margin-bottom: var(--space-24);
+  }
+
+  .gov-section-header h2,
+  .gov-section-header h3 {
+    color: var(--color-ui-text-primary);
+    /* Black */
+    margin: 0;
+  }
+
+  .gov-section-header-icon {
+    color: var(--color-brand-primary);
+    /* GOLD icon */
+    font-size: var(--font-size-header-default);
+  }
+
+  .border-sidebar-border {
+    border-color: #F4C400 !important;
+  }
+}
+
+/* Global Page Header Style */
+.gov-page-header {
+  @apply rounded-2xl p-6 shadow-sm mb-6 flex flex-col md:flex-row justify-between items-center;
+  background-color: var(--background-default) !important;
+  color: var(--foreground-default) !important;
+  border: 2px solid var(--accent-primary-default);
+}
+
+.gov-page-header h1,
+.gov-page-header h2,
+.gov-page-header h3 {
+  color: var(--foreground-default) !important;
+  text-transform: uppercase;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+}
+
+.gov-page-header p {
+  color: var(--foreground-dimmer) !important;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+/* Utility to force Gold Text - High Specificity */
+html body .text-gold,
+.text-gold {
+  color: #F4C400 !important;
+  fill: #F4C400 !important;
+  -webkit-text-fill-color: #F4C400 !important;
+}
+
+/* Force Table Headers to be Black BG / Gold Text */
+html body th,
+html body .table-head {
+  background-color: #0F0F0F !important;
+  color: #F4C400 !important;
+  text-transform: uppercase;
+  font-weight: 900 !important;
+  border-bottom: 2px solid #F4C400 !important;
 }

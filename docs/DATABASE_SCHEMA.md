@@ -227,9 +227,42 @@ Issued licences.
 | issueDate | DATE | Issue date |
 | expiryDate | DATE | Expiry date |
 | status | VARCHAR | active, expired, suspended, revoked |
+| licencePayloadHash | TEXT | SHA-256 of canonical licence data |
+| pdfHash | TEXT | SHA-256 of unsigned PDF |
+| signedPdfHash | TEXT | SHA-256 of signed PDF (PAdES) |
+| signatureMetadata | JSONB | Digital signature details |
+| version | INTEGER | Version number |
 
 ### licenceRenewals
 Licence renewal records.
+
+## Procurement
+
+### purchaseOrders
+Purchase orders for council procurement.
+| Column | Type | Description |
+|--------|------|-------------|
+| orderId | UUID | Primary key |
+| councilId | UUID | Foreign key to councils |
+| vendorId | UUID | Foreign key to businesses (vendors) |
+| requestorId | UUID | Foreign key to users |
+| orderDate | DATE | Date of order |
+| expectedDate | DATE | Expected delivery date |
+| status | VARCHAR | draft, submitted, approved, received, cancelled |
+| totalAmount | DECIMAL | Total order value |
+| currency | VARCHAR | Currency code (PGK) |
+| description | TEXT | Order description |
+
+### purchaseOrderLines
+Line items for purchase orders.
+| Column | Type | Description |
+|--------|------|-------------|
+| lineId | UUID | Primary key |
+| orderId | UUID | Foreign key to purchaseOrders |
+| description | TEXT | Item description |
+| quantity | INTEGER | Quantity ordered |
+| unitPrice | DECIMAL | Cost per unit |
+| lineTotal | DECIMAL | Total line cost |
 
 ### serviceRequests
 Service application requests.

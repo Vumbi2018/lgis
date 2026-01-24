@@ -4,63 +4,137 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
-import { Search, Filter, Download, DollarSign, TrendingUp, CreditCard, Calendar, FileText, Receipt, Send, Plus } from "lucide-react";
+import { Search, Filter, Download, DollarSign, TrendingUp, CreditCard, Calendar, FileText, Receipt, Send, Plus, Activity } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { MOCK_INVOICES } from "@/lib/mock-data";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useMemo } from "react";
 
-const TRANSACTIONS = [
-  { id: "TRX-8892", date: "2026-01-13", payer: "Steamships Trading", type: "Property Rates", amount: "12,500.00", status: "Completed", method: "Bank Transfer" },
-  { id: "TRX-8893", date: "2026-01-13", payer: "John Doe", type: "Trading License", amount: "500.00", status: "Completed", method: "Cash" },
-  { id: "TRX-8894", date: "2026-01-12", payer: "City Pharmacy", type: "Signage Fee", amount: "2,400.00", status: "Pending", method: "Cheque" },
-  { id: "TRX-8895", date: "2026-01-12", payer: "Vision City", type: "Property Rates", amount: "45,000.00", status: "Completed", method: "Bank Transfer" },
-  { id: "TRX-8896", date: "2026-01-11", payer: "Gordons Market Vendor", type: "Market Dues", amount: "15.00", status: "Completed", method: "Mobile Money" },
+const COLORS = [
+  "var(--accent-primary-default)",
+  "var(--accent-positive-default)",
+  "var(--accent-negative-default)",
+  "var(--accent-warning-default)",
+  "var(--accent-primary-dimmer)"
 ];
-
-const REVENUE_BY_SOURCE = [
-  { name: "Property Rates", value: 4500000 },
-  { name: "Trading Licenses", value: 1200000 },
-  { name: "Market Fees", value: 800000 },
-  { name: "Building Permits", value: 650000 },
-  { name: "Fines & Penalties", value: 150000 },
-];
-
-const MONTHLY_REVENUE = [
-  { name: "Jul", amount: 850000 },
-  { name: "Aug", amount: 920000 },
-  { name: "Sep", amount: 1100000 },
-  { name: "Oct", amount: 980000 },
-  { name: "Nov", amount: 1250000 },
-  { name: "Dec", amount: 1450000 },
-];
-
-const COLORS = ["#000000", "#FFD700", "#EF4444", "#3B82F6", "#10B981"];
 
 export default function RevenuePage() {
+  // Fetch real payments data
+  const { data: payments = [], isLoading } = useQuery({
+    queryKey: ["/api/v1/payments"],
+    queryFn: async () => {
+      const councilId = localStorage.getItem('councilId');
+      const res = await apiRequest("GET", `/api/v1/payments?councilId=${councilId}`);
+      return res.json();
+    }
+  });
+
+  // Calculate analytics from real data
+  const analytics = useMemo(() => {
+    if (!payments.length) return {
+      totalCollected: 0,
+      outstanding: 0,
+      dailyAverage: 0,
+      digitalPaymentRate: 0,
+      monthlyRevenue: [],
+      revenueBySource: [],
+      recentTransactions: []
+    };
+
+    const now = new Date();
+    const completedPayments = payments.filter((p: any) => p.status === 'completed');
+    const totalCollected = completedPayments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
+
+    // Calculate outstanding (mock for now - would need invoices table integration)
+    const outstanding = totalCollected * 0.3;
+
+    // Calculate 30-day average
+    const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+    const recentPayments = completedPayments.filter((p: any) => new Date(p.paidAt || p.createdAt) > thirtyDaysAgo);
+    const dailyAverage = recentPayments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0) / 30;
+
+    // Digital payment rate
+    const digitalMethods = ['bank_transfer', 'eftpos', 'mobile_money'];
+    const digitalPayments = completedPayments.filter((p: any) => digitalMethods.includes(p.method?.toLowerCase()));
+    const digitalPaymentRate = completedPayments.length > 0 ? (digitalPayments.length / completedPayments.length) * 100 : 0;
+
+    // Monthly revenue (last 6 months)
+    const monthlyRevenue = [];
+    for (let i = 5; i >= 0; i--) {
+      const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
+      const monthPayments = completedPayments.filter((p: any) => {
+        const paidDate = new Date(p.paidAt || p.createdAt);
+        return paidDate >= monthStart && paidDate <= monthEnd;
+      });
+      const amount = monthPayments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
+      monthlyRevenue.push({
+        name: monthStart.toLocaleDateString('en-US', { month: 'short' }),
+        amount: Math.round(amount)
+      });
+    }
+
+    // Revenue by source (mock categorization - would need service request integration)
+    const revenueBySource = [
+      { name: "Licensing Fees", value: totalCollected * 0.4 },
+      { name: "Property Rates", value: totalCollected * 0.35 },
+      { name: "Market Fees", value: totalCollected * 0.15 },
+      { name: "Permits", value: totalCollected * 0.08 },
+      { name: "Other", value: totalCollected * 0.02 }
+    ];
+
+    // Format recent transactions
+    const recentTransactions = completedPayments
+      .slice(0, 10)
+      .map((p: any) => ({
+        id: p.paymentRef,
+        date: new Date(p.paidAt || p.createdAt).toLocaleDateString(),
+        payer: "Payment Transaction", // Would need to join with accounts/requester
+        type: "License/Service Fee",
+        amount: parseFloat(p.amount).toFixed(2),
+        status: p.status === 'completed' ? 'Completed' : 'Pending',
+        method: p.method || 'Cash'
+      }));
+
+    return {
+      totalCollected,
+      outstanding,
+      dailyAverage,
+      digitalPaymentRate,
+      monthlyRevenue,
+      revenueBySource,
+      recentTransactions
+    };
+  }, [payments]);
+
+  const TRANSACTIONS = analytics.recentTransactions;
+  const REVENUE_BY_SOURCE = analytics.revenueBySource;
+  const MONTHLY_REVENUE = analytics.monthlyRevenue;
   return (
     <MainLayout>
-      {/* ... existing header ... */}
-      <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0 mb-6">
+      <div className="gov-page-header">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-black">Revenue Management</h2>
-          <p className="text-muted-foreground">Financial overview, billing, and collections.</p>
+          <h1 className="text-3xl font-black tracking-tight uppercase">Revenue Management</h1>
+          <p className="flex items-center mt-2 text-sm opacity-90">Financial overview, billing, and automated collections for the commission.</p>
         </div>
         <div className="flex gap-2">
-           <Button variant="outline" className="bg-white hover:bg-yellow-50">
-            <Calendar className="mr-2 h-4 w-4" />
+          <Button variant="outline" className="border-2 font-bold hover:bg-black/90 bg-black text-[#F4C400] border-[#F4C400]">
+            <Calendar className="mr-2 h-4 w-4 text-[#F4C400]" />
             Fiscal Year 2026
-           </Button>
-           <Button className="bg-black text-yellow-500 hover:bg-black/90">
-            <Download className="mr-2 h-4 w-4" />
+          </Button>
+          <Button className="font-bold border-none shadow-md hover:bg-black/90 bg-black text-[#F4C400]">
+            <Download className="mr-2 h-4 w-4 text-[#F4C400]" />
             Export Report
-           </Button>
+          </Button>
         </div>
       </div>
 
@@ -74,79 +148,87 @@ export default function RevenuePage() {
         <TabsContent value="overview">
           {/* ... existing dashboard grid ... */}
           <div className="grid gap-4 md:grid-cols-4 mb-6">
-            <Card className="shadow-sm">
+            <Card className="shadow-sm bg-white border border-gray-100">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium text-muted-foreground">Total Collected</p>
-                  <DollarSign className="h-4 w-4 text-green-600" />
+                  <p className="text-sm font-bold text-black uppercase">Total Collected</p>
+                  <DollarSign className="h-4 w-4 text-[#F4C400]" />
                 </div>
-                <div className="text-2xl font-bold">PGK 4.2M</div>
-                <p className="text-xs text-green-600 flex items-center mt-1">
-                  <TrendingUp className="h-3 w-3 mr-1" /> +12% vs last month
+                <div className="text-2xl font-black text-[#F4C400]">
+                  PGK {isLoading ? '...' : (analytics.totalCollected / 1000000).toFixed(1)}M
+                </div>
+                <p className="text-xs text-black font-medium flex items-center mt-1">
+                  <TrendingUp className="h-3 w-3 mr-1 text-[#F4C400]" /> Real-time data
                 </p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm">
+            <Card className="shadow-sm bg-white border border-gray-100">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium text-muted-foreground">Outstanding</p>
-                  <FileText className="h-4 w-4 text-red-600" />
+                  <p className="text-sm font-bold text-black uppercase">Outstanding</p>
+                  <FileText className="h-4 w-4 text-[#F4C400]" />
                 </div>
-                <div className="text-2xl font-bold">PGK 1.8M</div>
-                <p className="text-xs text-red-600 mt-1">Arrears {'>'} 90 days</p>
+                <div className="text-2xl font-black text-[#F4C400]">
+                  PGK {isLoading ? '...' : (analytics.outstanding / 1000000).toFixed(1)}M
+                </div>
+                <p className="text-xs text-black font-medium mt-1">Est. arrears</p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm">
+            <Card className="shadow-sm bg-white border border-gray-100">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium text-muted-foreground">Daily Average</p>
-                  <ActivityIcon className="h-4 w-4 text-blue-600" />
+                  <p className="text-sm font-bold text-black uppercase">Daily Average</p>
+                  <Activity className="h-4 w-4 text-[#F4C400]" />
                 </div>
-                <div className="text-2xl font-bold">PGK 45K</div>
-                <p className="text-xs text-muted-foreground mt-1">Based on last 30 days</p>
+                <div className="text-2xl font-black text-[#F4C400]">
+                  PGK {isLoading ? '...' : (analytics.dailyAverage / 1000).toFixed(0)}K
+                </div>
+                <p className="text-xs text-black font-medium mt-1">Based on last 30 days</p>
               </CardContent>
             </Card>
-            <Card className="shadow-sm">
+            <Card className="shadow-sm bg-white border border-gray-100">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium text-muted-foreground">Digital Payments</p>
-                  <CreditCard className="h-4 w-4 text-yellow-600" />
+                  <p className="text-sm font-bold text-black uppercase">Digital Payments</p>
+                  <CreditCard className="h-4 w-4 text-[#F4C400]" />
                 </div>
-                <div className="text-2xl font-bold">68%</div>
-                <p className="text-xs text-muted-foreground mt-1">adoption rate</p>
+                <div className="text-2xl font-black text-[#F4C400]">
+                  {isLoading ? '...' : analytics.digitalPaymentRate.toFixed(0)}%
+                </div>
+                <p className="text-xs text-black font-medium mt-1">adoption rate</p>
               </CardContent>
             </Card>
           </div>
 
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7 mb-6">
-             {/* ... existing charts ... */}
-             <Card className="col-span-4 shadow-sm">
+            {/* ... existing charts ... */}
+            <Card className="col-span-4 shadow-sm bg-white border border-gray-100">
               <CardHeader>
-                <CardTitle>Revenue Trends</CardTitle>
-                <CardDescription>Monthly collection performance.</CardDescription>
+                <CardTitle className="text-[#F4C400]">Revenue Trends</CardTitle>
+                <CardDescription className="text-black/70 font-medium">Monthly collection performance.</CardDescription>
               </CardHeader>
               <CardContent className="pl-2">
                 <div className="h-[300px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={MONTHLY_REVENUE}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                      <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `K${value/1000}k`} />
-                      <Tooltip 
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--outline-dimmer)" />
+                      <XAxis dataKey="name" stroke="var(--foreground-dimmer)" fontSize={12} tickLine={false} axisLine={false} />
+                      <YAxis stroke="var(--foreground-dimmer)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `K${value / 1000}k`} />
+                      <Tooltip
                         formatter={(value) => `PGK ${value.toLocaleString()}`}
-                        contentStyle={{ borderRadius: "8px", border: "1px solid #eee" }}
+                        contentStyle={{ borderRadius: "8px", border: "1px solid var(--outline-dimmer)", backgroundColor: "var(--background-default)", color: "var(--foreground-default)" }}
                       />
-                      <Bar dataKey="amount" fill="#000" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="amount" fill="var(--accent-primary-default)" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="col-span-3 shadow-sm">
+            <Card className="col-span-3 shadow-sm bg-white border border-gray-100">
               <CardHeader>
-                <CardTitle>Sources Breakdown</CardTitle>
-                <CardDescription>Revenue distribution by category.</CardDescription>
+                <CardTitle className="text-[#F4C400]">Sources Breakdown</CardTitle>
+                <CardDescription className="text-black/70 font-medium">Revenue distribution by category.</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="h-[300px] w-full">
@@ -187,16 +269,16 @@ export default function RevenuePage() {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
-                   <CardTitle>Invoices & Billing</CardTitle>
-                   <CardDescription>Manage outgoing bills and payment requests.</CardDescription>
+                  <CardTitle>Invoices & Billing</CardTitle>
+                  <CardDescription>Manage outgoing bills and payment requests.</CardDescription>
                 </div>
                 <Button>
-                   <Plus className="mr-2 h-4 w-4" /> Create Invoice
+                  <Plus className="mr-2 h-4 w-4" /> Create Invoice
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-               <Table>
+              <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Invoice #</TableHead>
@@ -209,30 +291,30 @@ export default function RevenuePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                   {MOCK_INVOICES.map((inv) => (
-                     <TableRow key={inv.id}>
-                        <TableCell className="font-medium">{inv.id}</TableCell>
-                        <TableCell>{inv.recipient}</TableCell>
-                        <TableCell>{inv.description}</TableCell>
-                        <TableCell>{inv.date}</TableCell>
-                        <TableCell className="font-bold">{inv.amount}</TableCell>
-                        <TableCell>
-                           <Badge variant={inv.status === "Paid" ? "default" : "destructive"} className={inv.status === "Paid" ? "bg-green-600" : ""}>{inv.status}</Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                           <Button variant="ghost" size="sm"><Send className="h-4 w-4 mr-1" /> Resend</Button>
-                           <Button variant="ghost" size="sm"><Receipt className="h-4 w-4 mr-1" /> View</Button>
-                        </TableCell>
-                     </TableRow>
-                   ))}
+                  {MOCK_INVOICES.map((inv) => (
+                    <TableRow key={inv.id}>
+                      <TableCell className="font-medium">{inv.id}</TableCell>
+                      <TableCell>{inv.recipient}</TableCell>
+                      <TableCell>{inv.description}</TableCell>
+                      <TableCell>{inv.date}</TableCell>
+                      <TableCell className="font-bold">{inv.amount}</TableCell>
+                      <TableCell>
+                        <Badge variant={inv.status === "Paid" ? "default" : "destructive"} className={inv.status === "Paid" ? "bg-positive text-white" : "bg-negative text-white"}>{inv.status}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm"><Send className="h-4 w-4 mr-1" /> Resend</Button>
+                        <Button variant="ghost" size="sm"><Receipt className="h-4 w-4 mr-1" /> View</Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
-               </Table>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>
 
         <TabsContent value="transactions">
-           <Card>
+          <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle>Recent Transactions</CardTitle>
@@ -262,7 +344,7 @@ export default function RevenuePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {TRANSACTIONS.map((trx) => (
+                  {TRANSACTIONS.map((trx: any) => (
                     <TableRow key={trx.id}>
                       <TableCell className="font-medium">{trx.id}</TableCell>
                       <TableCell>{trx.date}</TableCell>
@@ -271,7 +353,7 @@ export default function RevenuePage() {
                       <TableCell>{trx.method}</TableCell>
                       <TableCell className="font-bold">{trx.amount}</TableCell>
                       <TableCell>
-                        <Badge variant={trx.status === "Completed" ? "default" : "secondary"} className={trx.status === "Completed" ? "bg-green-600" : ""}>
+                        <Badge variant={trx.status === "Completed" ? "default" : "secondary"} className={trx.status === "Completed" ? "bg-positive text-white" : ""}>
                           {trx.status}
                         </Badge>
                       </TableCell>

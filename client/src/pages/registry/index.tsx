@@ -6,13 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from "@/components/ui/table";
 import {
   Dialog,
@@ -34,6 +34,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { PROVINCES, PROVINCES_AND_DISTRICTS } from "@/lib/location-data";
+import { BusinessLocationMap } from "@/components/BusinessLocationMap";
 
 interface Citizen {
   citizenId: string;
@@ -47,9 +49,14 @@ interface Citizen {
   phone: string | null;
   email: string | null;
   address: string | null;
+  section: string | null;
+  lot: string | null;
+  block: string | null;
+  suburb: string | null;
   village: string | null;
   district: string | null;
   province: string | null;
+  nationality: string | null;
   status: string | null;
   createdAt: string;
 }
@@ -69,8 +76,15 @@ interface Business {
   physicalAddress: string | null;
   section: string | null;
   lot: string | null;
+  block: string | null;
   suburb: string | null;
+  village: string | null;
+  district: string | null;
+  province: string | null;
   status: string | null;
+  isForeignEnterprise: boolean | null;
+  latitude: number | null;
+  longitude: number | null;
   createdAt: string;
 }
 
@@ -94,9 +108,14 @@ interface CitizenFormData {
   phone: string;
   email: string;
   address: string;
+  section: string;
+  lot: string;
+  block: string;
+  suburb: string;
   village: string;
   district: string;
   province: string;
+  nationality: string;
 }
 
 interface BusinessFormData {
@@ -111,26 +130,55 @@ interface BusinessFormData {
   physicalAddress: string;
   section: string;
   lot: string;
+  block: string;
   suburb: string;
+  village: string;
+  district: string;
+  province: string;
+  status: string;
+  registrationNo: string;
+  isForeignEnterprise?: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 const initialCitizenForm: CitizenFormData = {
   firstName: "", lastName: "", nationalId: "", dob: "",
-  phone: "", email: "", address: "", village: "", district: "", province: ""
+  phone: "", email: "", address: "", section: "", lot: "", block: "", suburb: "",
+  village: "", district: "", province: "", nationality: "PNG"
 };
 
 const initialBusinessForm: BusinessFormData = {
   legalName: "", tradingName: "", tin: "", businessType: "",
   ownerName: "", industry: "", contactPhone: "", contactEmail: "",
-  physicalAddress: "", section: "", lot: "", suburb: ""
+  physicalAddress: "", section: "", lot: "", block: "", suburb: "",
+  village: "", district: "", province: "",
+  status: "active", registrationNo: "",
+  isForeignEnterprise: false,
+  latitude: null,
+  longitude: null
+};
+
+interface AssetFormData {
+  name: string;
+  type: string;
+  location: string;
+  condition: string;
+  value: string;
+  status: string;
+  assetNo: string;
+}
+
+const initialAssetForm: AssetFormData = {
+  name: "", type: "", location: "", condition: "", value: "", status: "active", assetNo: ""
 };
 
 export default function RegistryPage() {
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeTab, setActiveTab] = useState("citizens");
+  const [activeTab, setActiveTab] = useState("businesses");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  
+
   const [selectedCitizen, setSelectedCitizen] = useState<Citizen | null>(null);
   const [selectedBusiness, setSelectedBusiness] = useState<Business | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
@@ -138,10 +186,16 @@ export default function RegistryPage() {
   const [showNewCitizenModal, setShowNewCitizenModal] = useState(false);
   const [showNewBusinessModal, setShowNewBusinessModal] = useState(false);
 
+  // Generate options for Section and Lot (1-100)
+  const numberOptions = Array.from({ length: 100 }, (_, i) => String(i + 1).padStart(2, '0'));
+
   const [citizenForm, setCitizenForm] = useState<CitizenFormData>(initialCitizenForm);
   const [businessForm, setBusinessForm] = useState<BusinessFormData>(initialBusinessForm);
+  const [assetForm, setAssetForm] = useState<AssetFormData>(initialAssetForm);
   const [editCitizenForm, setEditCitizenForm] = useState<CitizenFormData>(initialCitizenForm);
   const [editBusinessForm, setEditBusinessForm] = useState<BusinessFormData>(initialBusinessForm);
+  const [editAssetForm, setEditAssetForm] = useState<AssetFormData>(initialAssetForm);
+  const [showNewAssetModal, setShowNewAssetModal] = useState(false);
 
   const { data: citizens = [], isLoading: loadingCitizens } = useQuery<Citizen[]>({
     queryKey: ["/api/citizens"],
@@ -223,6 +277,7 @@ export default function RegistryPage() {
         businessName: data.legalName,
         tradingAs: data.tradingName,
         tinNumber: data.tin,
+        isForeignEnterprise: data.isForeignEnterprise,
         ...data,
       });
       return response.json();
@@ -268,8 +323,43 @@ export default function RegistryPage() {
     },
   });
 
+  const createAssetMutation = useMutation({
+    mutationFn: async (data: AssetFormData) => {
+      const response = await apiRequest("POST", "/api/assets", {
+        councilId: defaultCouncilId,
+        ...data,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
+      toast({ title: "Success", description: "Asset registered successfully." });
+      setShowNewAssetModal(false);
+      setAssetForm(initialAssetForm);
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to register asset.", variant: "destructive" });
+    },
+  });
+
+  const updateAssetMutation = useMutation({
+    mutationFn: async ({ assetId, data }: { assetId: string; data: Partial<AssetFormData> }) => {
+      const response = await apiRequest("PATCH", `/api/assets/${assetId}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/assets"] });
+      toast({ title: "Success", description: "Asset record updated." });
+      setSelectedAsset(null);
+      setViewMode("view");
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update asset.", variant: "destructive" });
+    },
+  });
+
   const filteredCitizens = citizens.filter(c => {
-    const matchesSearch = searchTerm === "" || 
+    const matchesSearch = searchTerm === "" ||
       `${c.firstName} ${c.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.nationalId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.localCitizenNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -303,8 +393,37 @@ export default function RegistryPage() {
     } else if (activeTab === "businesses") {
       setBusinessForm(initialBusinessForm);
       setShowNewBusinessModal(true);
-    } else {
-      toast({ title: "Coming Soon", description: "Asset registration will be available soon." });
+    } else if (activeTab === "assets") {
+      setAssetForm(initialAssetForm);
+      setShowNewAssetModal(true);
+    }
+  };
+
+  const handleCreateAsset = () => {
+    if (!assetForm.name || !assetForm.type) {
+      toast({ title: "Error", description: "Name and Type are required.", variant: "destructive" });
+      return;
+    }
+    createAssetMutation.mutate(assetForm);
+  };
+
+  const handleEditAsset = (asset: Asset) => {
+    setSelectedAsset(asset);
+    setEditAssetForm({
+      name: asset.name || "",
+      type: asset.type || "",
+      location: asset.location || "",
+      condition: asset.condition || "",
+      value: asset.value || "",
+      status: asset.status || "active",
+      assetNo: asset.assetNo || "",
+    });
+    setViewMode("edit");
+  };
+
+  const handleSaveAsset = () => {
+    if (selectedAsset) {
+      updateAssetMutation.mutate({ assetId: selectedAsset.assetId, data: editAssetForm });
     }
   };
 
@@ -323,9 +442,14 @@ export default function RegistryPage() {
       phone: citizen.phone || "",
       email: citizen.email || "",
       address: citizen.address || "",
+      section: citizen.section || "",
+      lot: citizen.lot || "",
+      block: citizen.block || "",
+      suburb: citizen.suburb || "",
       village: citizen.village || "",
       district: citizen.district || "",
       province: citizen.province || "",
+      nationality: citizen.nationality || "PNG",
     });
     setViewMode("edit");
   };
@@ -349,7 +473,16 @@ export default function RegistryPage() {
       physicalAddress: business.physicalAddress || "",
       section: business.section || "",
       lot: business.lot || "",
+      block: business.block || "",
       suburb: business.suburb || "",
+      village: business.village || "",
+      district: business.district || "",
+      province: business.province || "",
+      status: business.status || "active",
+      registrationNo: business.registrationNo || "",
+      isForeignEnterprise: business.isForeignEnterprise ?? false,
+      latitude: business.latitude,
+      longitude: business.longitude
     });
     setViewMode("edit");
   };
@@ -396,45 +529,52 @@ export default function RegistryPage() {
   };
 
   const getStatusBadge = (status: string | null) => {
-    switch (status) {
+    switch (status?.toLowerCase()) {
       case "active":
-        return <Badge className="bg-emerald-600 hover:bg-emerald-700">Active</Badge>;
+      case "approved":
+      case "registered":
+        return <Badge variant="outline" className="bg-positive-dimmest text-positive border-positive-dimmer">Active</Badge>;
       case "pending":
-        return <Badge variant="secondary">Pending</Badge>;
-      case "suspended":
-        return <Badge variant="destructive">Suspended</Badge>;
+      case "under review":
+        return <Badge variant="outline" className="bg-warning-dimmest text-warning border-warning-dimmer">Pending</Badge>;
       case "inactive":
-        return <Badge variant="outline">Inactive</Badge>;
+      case "suspended":
+      case "closed":
+        return <Badge variant="outline" className="bg-background-higher text-foreground-dimmer border-outline-dimmer">Inactive</Badge>;
       default:
-        return <Badge className="bg-emerald-600 hover:bg-emerald-700">Active</Badge>;
+        return <Badge variant="outline" className="bg-positive-dimmest text-positive border-positive-dimmer">Active</Badge>;
     }
   };
 
   const getConditionBadge = (condition: string | null) => {
     switch (condition?.toLowerCase()) {
       case "excellent":
-        return <Badge className="bg-emerald-600 hover:bg-emerald-700">Excellent</Badge>;
+        return <Badge variant="outline" className="bg-positive-dimmest text-positive border-positive-dimmer">Excellent</Badge>;
       case "good":
-        return <Badge className="bg-blue-600 hover:bg-blue-700">Good</Badge>;
+        return <Badge variant="outline" className="bg-accent-primary-dimmest text-accent-primary-default border-accent-primary-dimmer">Good</Badge>;
       case "fair":
-        return <Badge variant="secondary">Fair</Badge>;
+        return <Badge variant="outline" className="bg-warning-dimmest text-warning border-warning-dimmer">Fair</Badge>;
       case "poor":
-        return <Badge variant="destructive">Poor</Badge>;
+        return <Badge variant="outline" className="bg-negative-dimmest text-negative border-negative-dimmer">Poor</Badge>;
       default:
-        return <Badge variant="outline">{condition || "Unknown"}</Badge>;
+        return <Badge variant="outline" className="text-foreground-dimmer border-outline-dimmer">{condition || "Unknown"}</Badge>;
     }
   };
 
   return (
     <MainLayout>
-      <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
+      <div className="gov-page-header">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-primary">Registry</h2>
-          <p className="text-muted-foreground">Manage citizen and business records.</p>
+          <h1 className="text-3xl font-bold uppercase tracking-tight">Registry</h1>
+          <p className="flex items-center mt-2 text-sm opacity-90">Manage citizen and business records across the National Capital District.</p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button onClick={handleNewRegistration} data-testid="button-new-registration">
-            <Plus className="mr-2 h-4 w-4" />
+          <Button
+            onClick={handleNewRegistration}
+            data-testid="button-new-registration"
+            className="btn-primary shadow-lg"
+          >
+            <Plus className="mr-2 h-5 w-5" />
             New Registration
           </Button>
         </div>
@@ -442,18 +582,24 @@ export default function RegistryPage() {
 
       <div className="pt-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="citizens" data-testid="tab-citizens">Citizens ({filteredCitizens.length})</TabsTrigger>
-            <TabsTrigger value="businesses" data-testid="tab-businesses">Businesses ({filteredBusinesses.length})</TabsTrigger>
-            <TabsTrigger value="assets" data-testid="tab-assets">Assets & Facilities ({filteredAssets.length})</TabsTrigger>
+          <TabsList className="bg-background-higher border-outline-dimmer rounded-xl p-1 gap-1 border">
+            {['citizens', 'businesses', 'assets'].map(tab => (
+              <TabsTrigger
+                key={tab}
+                value={tab}
+                className="rounded-lg px-6 data-[state=active]:bg-accent-primary-default data-[state=active]:text-background-default transition-all"
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)} ({tab === 'citizens' ? filteredCitizens.length : tab === 'businesses' ? filteredBusinesses.length : filteredAssets.length})
+              </TabsTrigger>
+            ))}
           </TabsList>
-          
+
           <div className="flex items-center space-x-2 py-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <div className="relative flex-1 group">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <Input
                 placeholder="Search by Name, ID, or TIN..."
-                className="pl-9 w-full md:w-[300px]"
+                className="pl-9 w-full md:w-[300px] rounded-xl border transition-all border-outline-dimmer bg-background-higher text-foreground-default"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 data-testid="input-search"
@@ -484,19 +630,19 @@ export default function RegistryPage() {
                 ) : (
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>National ID</TableHead>
-                        <TableHead>Contact</TableHead>
-                        <TableHead>Address</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                      <TableRow className="bg-background-higher">
+                        <TableHead className="text-foreground-dimmer">Name</TableHead>
+                        <TableHead className="text-foreground-dimmer">National ID</TableHead>
+                        <TableHead className="text-foreground-dimmer">Contact</TableHead>
+                        <TableHead className="text-foreground-dimmer">Address</TableHead>
+                        <TableHead className="text-foreground-dimmer">Status</TableHead>
+                        <TableHead className="text-right text-foreground-dimmer">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredCitizens.map((citizen) => (
-                        <TableRow 
-                          key={citizen.citizenId} 
+                        <TableRow
+                          key={citizen.citizenId}
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => handleViewCitizen(citizen)}
                           data-testid={`row-citizen-${citizen.citizenId}`}
@@ -527,7 +673,7 @@ export default function RegistryPage() {
                                   <Pencil className="mr-2 h-4 w-4" />
                                   Edit Record
                                 </DropdownMenuItem>
-                                <DropdownMenuItem 
+                                <DropdownMenuItem
                                   className="text-destructive"
                                   onClick={(e) => { e.stopPropagation(); handleDeactivateCitizen(citizen.citizenId); }}
                                 >
@@ -561,24 +707,24 @@ export default function RegistryPage() {
               <CardContent>
                 {loadingBusinesses ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
                 ) : (
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Business Name</TableHead>
-                        <TableHead>TIN</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Owner</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
+                      <TableRow className="bg-background-higher">
+                        <TableHead className="text-foreground-dimmer">Business Name</TableHead>
+                        <TableHead className="text-foreground-dimmer">TIN</TableHead>
+                        <TableHead className="text-foreground-dimmer">Type</TableHead>
+                        <TableHead className="text-foreground-dimmer">Owner</TableHead>
+                        <TableHead className="text-foreground-dimmer">Status</TableHead>
+                        <TableHead className="text-right text-foreground-dimmer">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredBusinesses.map((business) => (
-                        <TableRow 
-                          key={business.businessId} 
+                        <TableRow
+                          key={business.businessId}
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => handleViewBusiness(business)}
                           data-testid={`row-business-${business.businessId}`}
@@ -609,7 +755,7 @@ export default function RegistryPage() {
                                   <Pencil className="mr-2 h-4 w-4" />
                                   Edit Record
                                 </DropdownMenuItem>
-                                <DropdownMenuItem 
+                                <DropdownMenuItem
                                   className="text-destructive"
                                   onClick={(e) => { e.stopPropagation(); handleDeactivateBusiness(business.businessId); }}
                                 >
@@ -643,13 +789,13 @@ export default function RegistryPage() {
               <CardContent>
                 {loadingAssets ? (
                   <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
                 ) : (
                   <Table>
                     <TableHeader>
-                      <TableRow>
-                        <TableHead>Asset ID</TableHead>
+                      <TableRow style={{ backgroundColor: 'var(--background-higher)' }}>
+                        <TableHead style={{ color: 'var(--foreground-dimmer)' }}>Asset ID</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Type</TableHead>
                         <TableHead>Location</TableHead>
@@ -660,8 +806,8 @@ export default function RegistryPage() {
                     </TableHeader>
                     <TableBody>
                       {filteredAssets.map((asset) => (
-                        <TableRow 
-                          key={asset.assetId} 
+                        <TableRow
+                          key={asset.assetId}
                           className="cursor-pointer hover:bg-muted/50"
                           onClick={() => handleViewAsset(asset)}
                           data-testid={`row-asset-${asset.assetId}`}
@@ -688,6 +834,10 @@ export default function RegistryPage() {
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleViewAsset(asset); }}>
                                   <Eye className="mr-2 h-4 w-4" />
                                   View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEditAsset(asset); }}>
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  Edit Record
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -727,17 +877,14 @@ export default function RegistryPage() {
                   <Label className="text-sm text-muted-foreground">Citizen ID</Label>
                   <p className="font-mono text-sm">{selectedCitizen.localCitizenNo || selectedCitizen.citizenId}</p>
                 </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">National ID</Label>
-                  <p className="font-medium">{selectedCitizen.nationalId || "Not provided"}</p>
-                </div>
+                <div className="hidden"></div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm text-muted-foreground">First Name</Label>
+                  <Label>First Name</Label>
                   {viewMode === "edit" ? (
-                    <Input 
-                      value={editCitizenForm.firstName} 
+                    <Input
+                      value={editCitizenForm.firstName}
                       onChange={(e) => setEditCitizenForm(prev => ({ ...prev, firstName: e.target.value }))}
                     />
                   ) : (
@@ -745,9 +892,9 @@ export default function RegistryPage() {
                   )}
                 </div>
                 <div>
-                  <Label className="text-sm text-muted-foreground">Last Name</Label>
+                  <Label>Last Name</Label>
                   {viewMode === "edit" ? (
-                    <Input 
+                    <Input
                       value={editCitizenForm.lastName}
                       onChange={(e) => setEditCitizenForm(prev => ({ ...prev, lastName: e.target.value }))}
                     />
@@ -756,11 +903,184 @@ export default function RegistryPage() {
                   )}
                 </div>
               </div>
+              {/* Location Details (Province -> District -> Village -> Suburb) */}
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <Label>Province</Label>
+                  {viewMode === "edit" ? (
+                    <Select
+                      value={editCitizenForm.province}
+                      onValueChange={(val) => setEditCitizenForm(prev => ({ ...prev, province: val, district: "" }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PROVINCES.map((province) => (
+                          <SelectItem key={province} value={province}>{province}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="font-medium">{selectedCitizen.province || "—"}</p>
+                  )}
+                </div>
+                <div>
+                  <Label>District</Label>
+                  {viewMode === "edit" ? (
+                    <Select
+                      value={editCitizenForm.district}
+                      onValueChange={(val) => setEditCitizenForm(prev => ({ ...prev, district: val }))}
+                      disabled={!editCitizenForm.province}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {editCitizenForm.province && PROVINCES_AND_DISTRICTS[editCitizenForm.province]?.map((district) => (
+                          <SelectItem key={district} value={district}>{district}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="font-medium">{selectedCitizen.district || "—"}</p>
+                  )}
+                </div>
+                <div>
+                  <Label>Village/LLG</Label>
+                  {viewMode === "edit" ? (
+                    <Input
+                      value={editCitizenForm.village}
+                      onChange={(e) => setEditCitizenForm(prev => ({ ...prev, village: e.target.value }))}
+                    />
+                  ) : (
+                    <p className="font-medium">{selectedCitizen.village || "—"}</p>
+                  )}
+                </div>
+                <div>
+                  <Label>Suburb</Label>
+                  {viewMode === "edit" ? (
+                    <Input
+                      value={editCitizenForm.suburb}
+                      onChange={(e) => setEditCitizenForm(prev => ({ ...prev, suburb: e.target.value }))}
+                    />
+                  ) : (
+                    <p className="font-medium">{selectedCitizen.suburb || "—"}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Address Details (Section -> Lot -> Block -> Street) */}
+              <div className="grid grid-cols-4 gap-4">
+                <div>
+                  <Label>Section</Label>
+                  {viewMode === "edit" ? (
+                    <Select
+                      value={editCitizenForm.section}
+                      onValueChange={(val) => setEditCitizenForm(prev => ({ ...prev, section: val }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sec" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {numberOptions.map((num) => (
+                          <SelectItem key={`sec-edit-${num}`} value={num}>{num}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="font-medium">{selectedCitizen.section || "—"}</p>
+                  )}
+                </div>
+                <div>
+                  <Label>Lot</Label>
+                  {viewMode === "edit" ? (
+                    <Select
+                      value={editCitizenForm.lot}
+                      onValueChange={(val) => setEditCitizenForm(prev => ({ ...prev, lot: val }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Lot" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {numberOptions.map((num) => (
+                          <SelectItem key={`lot-edit-${num}`} value={num}>{num}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="font-medium">{selectedCitizen.lot || "—"}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <Label>Nationality</Label>
+                  {viewMode === "edit" ? (
+                    <Input
+                      value={editCitizenForm.nationality}
+                      onChange={(e) => setEditCitizenForm(prev => ({ ...prev, nationality: e.target.value }))}
+                    />
+                  ) : (
+                    <p className="font-medium">{selectedCitizen.nationality || "—"}</p>
+                  )}
+                </div>
+                <div>
+                  <Label>National ID</Label>
+                  {viewMode === "edit" ? (
+                    <Input
+                      value={editCitizenForm.nationalId}
+                      onChange={(e) => setEditCitizenForm(prev => ({ ...prev, nationalId: e.target.value }))}
+                    />
+                  ) : (
+                    <p className="font-medium">{selectedCitizen.nationalId || "Not provided"}</p>
+                  )}
+                </div>
+                <div>
+                  <Label>Date of Birth</Label>
+                  {viewMode === "edit" ? (
+                    <Input
+                      type="date"
+                      value={editCitizenForm.dob}
+                      onChange={(e) => setEditCitizenForm(prev => ({ ...prev, dob: e.target.value }))}
+                    />
+                  ) : (
+                    <p className="font-medium">{selectedCitizen.dob ? new Date(selectedCitizen.dob).toLocaleDateString() : "Not provided"}</p>
+                  )}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm text-muted-foreground">Phone</Label>
+                  <Label>Block</Label>
                   {viewMode === "edit" ? (
-                    <Input 
+                    <Input
+                      value={editCitizenForm.block}
+                      onChange={(e) => setEditCitizenForm(prev => ({ ...prev, block: e.target.value }))}
+                    />
+                  ) : (
+                    <p className="font-medium">{selectedCitizen.block || "—"}</p>
+                  )}
+                </div>
+                <div>
+                  <Label>Street</Label>
+                  {viewMode === "edit" ? (
+                    <Input
+                      value={editCitizenForm.address}
+                      onChange={(e) => setEditCitizenForm(prev => ({ ...prev, address: e.target.value }))}
+                    />
+                  ) : (
+                    <p className="font-medium">{selectedCitizen.address || "Not provided"}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Phone</Label>
+                  {viewMode === "edit" ? (
+                    <Input
                       value={editCitizenForm.phone}
                       onChange={(e) => setEditCitizenForm(prev => ({ ...prev, phone: e.target.value }))}
                     />
@@ -769,40 +1089,15 @@ export default function RegistryPage() {
                   )}
                 </div>
                 <div>
-                  <Label className="text-sm text-muted-foreground">Email</Label>
+                  <Label>Email</Label>
                   {viewMode === "edit" ? (
-                    <Input 
+                    <Input
                       value={editCitizenForm.email}
                       onChange={(e) => setEditCitizenForm(prev => ({ ...prev, email: e.target.value }))}
                     />
                   ) : (
                     <p className="font-medium">{selectedCitizen.email || "Not provided"}</p>
                   )}
-                </div>
-              </div>
-              <div>
-                <Label className="text-sm text-muted-foreground">Address</Label>
-                {viewMode === "edit" ? (
-                  <Input 
-                    value={editCitizenForm.address}
-                    onChange={(e) => setEditCitizenForm(prev => ({ ...prev, address: e.target.value }))}
-                  />
-                ) : (
-                  <p className="font-medium">{selectedCitizen.address || "Not provided"}</p>
-                )}
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-sm text-muted-foreground">Village</Label>
-                  <p className="font-medium">{selectedCitizen.village || "—"}</p>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">District</Label>
-                  <p className="font-medium">{selectedCitizen.district || "—"}</p>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">Province</Label>
-                  <p className="font-medium">{selectedCitizen.province || "—"}</p>
                 </div>
               </div>
             </div>
@@ -819,7 +1114,7 @@ export default function RegistryPage() {
             ) : (
               <>
                 <Button variant="outline" onClick={() => setViewMode("view")}>Cancel</Button>
-                <Button 
+                <Button
                   onClick={handleSaveCitizen}
                   disabled={updateCitizenMutation.isPending}
                 >
@@ -843,104 +1138,337 @@ export default function RegistryPage() {
             </DialogDescription>
           </DialogHeader>
           {selectedBusiness && (
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-muted-foreground">Registration No</Label>
-                  <p className="font-mono text-sm">{selectedBusiness.registrationNo || selectedBusiness.businessId}</p>
+            <Tabs defaultValue="details" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 mb-4">
+                <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="contact">Contact</TabsTrigger>
+                <TabsTrigger value="location">Location</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="details" className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Registration No</Label>
+                    {viewMode === "edit" ? (
+                      <Input
+                        value={editBusinessForm.registrationNo}
+                        onChange={(e) => setEditBusinessForm(prev => ({ ...prev, registrationNo: e.target.value }))}
+                      />
+                    ) : (
+                      <p className="font-mono text-sm">{selectedBusiness.registrationNo || selectedBusiness.businessId}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">TIN</Label>
+                    {viewMode === "edit" ? (
+                      <Input
+                        value={editBusinessForm.tin}
+                        onChange={(e) => setEditBusinessForm(prev => ({ ...prev, tin: e.target.value }))}
+                      />
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.tin || "Not provided"}</p>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">TIN</Label>
-                  <p className="font-medium">{selectedBusiness.tin || "Not provided"}</p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Legal Name</Label>
+                    {viewMode === "edit" ? (
+                      <Input
+                        value={editBusinessForm.legalName}
+                        onChange={(e) => setEditBusinessForm(prev => ({ ...prev, legalName: e.target.value }))}
+                      />
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.legalName}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Trading Name</Label>
+                    {viewMode === "edit" ? (
+                      <Input
+                        value={editBusinessForm.tradingName}
+                        onChange={(e) => setEditBusinessForm(prev => ({ ...prev, tradingName: e.target.value }))}
+                      />
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.tradingName || "—"}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-muted-foreground">Legal Name</Label>
-                  {viewMode === "edit" ? (
-                    <Input 
-                      value={editBusinessForm.legalName}
-                      onChange={(e) => setEditBusinessForm(prev => ({ ...prev, legalName: e.target.value }))}
-                    />
-                  ) : (
-                    <p className="font-medium">{selectedBusiness.legalName}</p>
-                  )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Origin</Label>
+                    {viewMode === "edit" ? (
+                      <Select
+                        value={editBusinessForm.isForeignEnterprise ? "international" : "local"}
+                        onValueChange={(val) => setEditBusinessForm(prev => ({ ...prev, isForeignEnterprise: val === "international" }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select origin" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="local">Local Enterprise</SelectItem>
+                          <SelectItem value="international">International/Foreign Enterprise</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.isForeignEnterprise ? "International" : "Local"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Business Type</Label>
+                    {viewMode === "edit" ? (
+                      <Select
+                        value={editBusinessForm.businessType}
+                        onValueChange={(val) => setEditBusinessForm(prev => ({ ...prev, businessType: val }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="company">Company</SelectItem>
+                          <SelectItem value="sole_trader">Sole Trader</SelectItem>
+                          <SelectItem value="partnership">Partnership</SelectItem>
+                          <SelectItem value="ngo">NGO</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.businessType || "—"}</p>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">Trading Name</Label>
-                  {viewMode === "edit" ? (
-                    <Input 
-                      value={editBusinessForm.tradingName}
-                      onChange={(e) => setEditBusinessForm(prev => ({ ...prev, tradingName: e.target.value }))}
-                    />
-                  ) : (
-                    <p className="font-medium">{selectedBusiness.tradingName || "—"}</p>
-                  )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Industry</Label>
+                    {viewMode === "edit" ? (
+                      <Input
+                        value={editBusinessForm.industry}
+                        onChange={(e) => setEditBusinessForm(prev => ({ ...prev, industry: e.target.value }))}
+                      />
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.industry || "—"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Owner Name</Label>
+                    {viewMode === "edit" ? (
+                      <Input
+                        value={editBusinessForm.ownerName}
+                        onChange={(e) => setEditBusinessForm(prev => ({ ...prev, ownerName: e.target.value }))}
+                      />
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.ownerName || "—"}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-muted-foreground">Business Type</Label>
-                  <p className="font-medium">{selectedBusiness.businessType || "—"}</p>
-                </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">Industry</Label>
-                  <p className="font-medium">{selectedBusiness.industry || "—"}</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-muted-foreground">Owner Name</Label>
-                  <p className="font-medium">{selectedBusiness.ownerName || "—"}</p>
-                </div>
+
                 <div>
                   <Label className="text-sm text-muted-foreground">Status</Label>
-                  <div className="mt-1">{getStatusBadge(selectedBusiness.status)}</div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-sm text-muted-foreground">Contact Phone</Label>
                   {viewMode === "edit" ? (
-                    <Input 
-                      value={editBusinessForm.contactPhone}
-                      onChange={(e) => setEditBusinessForm(prev => ({ ...prev, contactPhone: e.target.value }))}
-                    />
+                    <Select
+                      value={editBusinessForm.status}
+                      onValueChange={(val) => setEditBusinessForm(prev => ({ ...prev, status: val }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="suspended">Suspended</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
                   ) : (
-                    <p className="font-medium">{selectedBusiness.contactPhone || "—"}</p>
+                    <div className="mt-1">{getStatusBadge(selectedBusiness.status)}</div>
                   )}
                 </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">Contact Email</Label>
-                  {viewMode === "edit" ? (
-                    <Input 
-                      value={editBusinessForm.contactEmail}
-                      onChange={(e) => setEditBusinessForm(prev => ({ ...prev, contactEmail: e.target.value }))}
+              </TabsContent>
+
+              <TabsContent value="contact" className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Contact Phone</Label>
+                    {viewMode === "edit" ? (
+                      <Input
+                        value={editBusinessForm.contactPhone}
+                        onChange={(e) => setEditBusinessForm(prev => ({ ...prev, contactPhone: e.target.value }))}
+                      />
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.contactPhone || "—"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Contact Email</Label>
+                    {viewMode === "edit" ? (
+                      <Input
+                        value={editBusinessForm.contactEmail}
+                        onChange={(e) => setEditBusinessForm(prev => ({ ...prev, contactEmail: e.target.value }))}
+                      />
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.contactEmail || "—"}</p>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="location" className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Location Map</Label>
+                  <div className="rounded-md overflow-hidden border">
+                    <BusinessLocationMap
+                      latitude={viewMode === "edit" ? (editBusinessForm.latitude || null) : (selectedBusiness.latitude || null)}
+                      longitude={viewMode === "edit" ? (editBusinessForm.longitude || null) : (selectedBusiness.longitude || null)}
+                      onLocationChange={(lat, lng) => {
+                        if (viewMode === "edit") {
+                          setEditBusinessForm(prev => ({ ...prev, latitude: lat, longitude: lng }));
+                        }
+                      }}
+                      height="200px"
                     />
-                  ) : (
-                    <p className="font-medium">{selectedBusiness.contactEmail || "—"}</p>
-                  )}
+                  </div>
                 </div>
-              </div>
-              <div>
-                <Label className="text-sm text-muted-foreground">Physical Address</Label>
-                <p className="font-medium">{selectedBusiness.physicalAddress || "—"}</p>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <Label className="text-sm text-muted-foreground">Section</Label>
-                  <p className="font-medium">{selectedBusiness.section || "—"}</p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Province</Label>
+                    {viewMode === "edit" ? (
+                      <Select
+                        value={editBusinessForm.province}
+                        onValueChange={(val) => setEditBusinessForm(prev => ({ ...prev, province: val, district: "" }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PROVINCES.map((province) => (
+                            <SelectItem key={`biz-edit-prov-${province}`} value={province}>{province}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.province || "—"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">District</Label>
+                    {viewMode === "edit" ? (
+                      <Select
+                        value={editBusinessForm.district}
+                        onValueChange={(val) => setEditBusinessForm(prev => ({ ...prev, district: val }))}
+                        disabled={!editBusinessForm.province}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {editBusinessForm.province && PROVINCES_AND_DISTRICTS[editBusinessForm.province]?.map((district) => (
+                            <SelectItem key={`biz-edit-dist-${district}`} value={district}>{district}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.district || "—"}</p>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">Lot</Label>
-                  <p className="font-medium">{selectedBusiness.lot || "—"}</p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Section</Label>
+                    {viewMode === "edit" ? (
+                      <Select
+                        value={editBusinessForm.section}
+                        onValueChange={(val) => setEditBusinessForm(prev => ({ ...prev, section: val }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Sec" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {numberOptions.map((num) => (
+                            <SelectItem key={`biz-edit-sec-${num}`} value={num}>{num}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.section || "—"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Lot</Label>
+                    {viewMode === "edit" ? (
+                      <Select
+                        value={editBusinessForm.lot}
+                        onValueChange={(val) => setEditBusinessForm(prev => ({ ...prev, lot: val }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Lot" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {numberOptions.map((num) => (
+                            <SelectItem key={`biz-edit-lot-${num}`} value={num}>{num}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.lot || "—"}</p>
+                    )}
+                  </div>
                 </div>
-                <div>
-                  <Label className="text-sm text-muted-foreground">Suburb</Label>
-                  <p className="font-medium">{selectedBusiness.suburb || "—"}</p>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Suburb</Label>
+                    {viewMode === "edit" ? (
+                      <Input
+                        value={editBusinessForm.suburb}
+                        onChange={(e) => setEditBusinessForm(prev => ({ ...prev, suburb: e.target.value }))}
+                      />
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.suburb || "—"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Address Detail</Label>
+                    {viewMode === "edit" ? (
+                      <Input
+                        value={editBusinessForm.physicalAddress}
+                        onChange={(e) => setEditBusinessForm(prev => ({ ...prev, physicalAddress: e.target.value }))}
+                      />
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.physicalAddress || "—"}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Block</Label>
+                    {viewMode === "edit" ? (
+                      <Input
+                        value={editBusinessForm.block}
+                        onChange={(e) => setEditBusinessForm(prev => ({ ...prev, block: e.target.value }))}
+                      />
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.block || "—"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Village/LLG</Label>
+                    {viewMode === "edit" ? (
+                      <Input
+                        value={editBusinessForm.village}
+                        onChange={(e) => setEditBusinessForm(prev => ({ ...prev, village: e.target.value }))}
+                      />
+                    ) : (
+                      <p className="font-medium">{selectedBusiness.village || "—"}</p>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+            </Tabs>
           )}
           <DialogFooter>
             {viewMode === "view" ? (
@@ -954,7 +1482,7 @@ export default function RegistryPage() {
             ) : (
               <>
                 <Button variant="outline" onClick={() => setViewMode("view")}>Cancel</Button>
-                <Button 
+                <Button
                   onClick={handleSaveBusiness}
                   disabled={updateBusinessMutation.isPending}
                 >
@@ -967,46 +1495,145 @@ export default function RegistryPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!selectedAsset} onOpenChange={(open) => !open && setSelectedAsset(null)}>
+      <Dialog open={!!selectedAsset} onOpenChange={(open) => { if (!open) { setSelectedAsset(null); setViewMode("view"); } }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Asset Details</DialogTitle>
-            <DialogDescription>View asset information</DialogDescription>
+            <DialogTitle>
+              {viewMode === "view" ? "Asset Details" : "Edit Asset"}
+            </DialogTitle>
+            <DialogDescription>
+              {viewMode === "view" ? "View asset information" : "Update asset information"}
+            </DialogDescription>
           </DialogHeader>
           {selectedAsset && (
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm text-muted-foreground">Asset ID</Label>
-                  <p className="font-mono text-sm">{selectedAsset.assetNo}</p>
+                  {viewMode === "edit" ? (
+                    <Input
+                      value={editAssetForm.assetNo}
+                      onChange={(e) => setEditAssetForm(prev => ({ ...prev, assetNo: e.target.value }))}
+                    />
+                  ) : (
+                    <p className="font-mono text-sm">{selectedAsset.assetNo}</p>
+                  )}
                 </div>
                 <div>
                   <Label className="text-sm text-muted-foreground">Type</Label>
-                  <p className="font-medium">{selectedAsset.type}</p>
+                  {viewMode === "edit" ? (
+                    <Input
+                      value={editAssetForm.type}
+                      onChange={(e) => setEditAssetForm(prev => ({ ...prev, type: e.target.value }))}
+                    />
+                  ) : (
+                    <p className="font-medium">{selectedAsset.type}</p>
+                  )}
                 </div>
               </div>
               <div>
                 <Label className="text-sm text-muted-foreground">Name</Label>
-                <p className="font-medium">{selectedAsset.name}</p>
+                {viewMode === "edit" ? (
+                  <Input
+                    value={editAssetForm.name}
+                    onChange={(e) => setEditAssetForm(prev => ({ ...prev, name: e.target.value }))}
+                  />
+                ) : (
+                  <p className="font-medium">{selectedAsset.name}</p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm text-muted-foreground">Location</Label>
-                  <p className="font-medium">{selectedAsset.location || "—"}</p>
+                  {viewMode === "edit" ? (
+                    <Input
+                      value={editAssetForm.location}
+                      onChange={(e) => setEditAssetForm(prev => ({ ...prev, location: e.target.value }))}
+                    />
+                  ) : (
+                    <p className="font-medium">{selectedAsset.location || "—"}</p>
+                  )}
                 </div>
                 <div>
                   <Label className="text-sm text-muted-foreground">Condition</Label>
-                  <div className="mt-1">{getConditionBadge(selectedAsset.condition)}</div>
+                  {viewMode === "edit" ? (
+                    <Select
+                      value={editAssetForm.condition}
+                      onValueChange={(val) => setEditAssetForm(prev => ({ ...prev, condition: val }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select condition" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="excellent">Excellent</SelectItem>
+                        <SelectItem value="good">Good</SelectItem>
+                        <SelectItem value="fair">Fair</SelectItem>
+                        <SelectItem value="poor">Poor</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="mt-1">{getConditionBadge(selectedAsset.condition)}</div>
+                  )}
                 </div>
               </div>
-              <div>
-                <Label className="text-sm text-muted-foreground">Value</Label>
-                <p className="font-medium text-lg">{selectedAsset.value || "—"}</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm text-muted-foreground">Value</Label>
+                  {viewMode === "edit" ? (
+                    <Input
+                      value={editAssetForm.value}
+                      onChange={(e) => setEditAssetForm(prev => ({ ...prev, value: e.target.value }))}
+                    />
+                  ) : (
+                    <p className="font-medium text-lg">{selectedAsset.value || "—"}</p>
+                  )}
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">Status</Label>
+                  {viewMode === "edit" ? (
+                    <Select
+                      value={editAssetForm.status}
+                      onValueChange={(val) => setEditAssetForm(prev => ({ ...prev, status: val }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="maintenance">Maintenance</SelectItem>
+                        <SelectItem value="retired">Retired</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="mt-1">
+                      <Badge variant="outline">{selectedAsset.status}</Badge>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedAsset(null)}>Close</Button>
+            {viewMode === "view" ? (
+              <>
+                <Button variant="outline" onClick={() => setSelectedAsset(null)}>Close</Button>
+                <Button onClick={() => { if (selectedAsset) handleEditAsset(selectedAsset); }}>
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setViewMode("view")}>Cancel</Button>
+                <Button
+                  onClick={handleSaveAsset}
+                  disabled={updateAssetMutation.isPending}
+                >
+                  {updateAssetMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save Changes
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1020,34 +1647,148 @@ export default function RegistryPage() {
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>First Name *</Label>
-                <Input 
-                  placeholder="Enter first name" 
+                <Label>First Name</Label>
+                <Input
+                  placeholder="John"
                   value={citizenForm.firstName}
                   onChange={(e) => setCitizenForm(prev => ({ ...prev, firstName: e.target.value }))}
                 />
               </div>
               <div>
-                <Label>Last Name *</Label>
-                <Input 
-                  placeholder="Enter last name"
+                <Label>Last Name</Label>
+                <Input
+                  placeholder="Doe"
                   value={citizenForm.lastName}
                   onChange={(e) => setCitizenForm(prev => ({ ...prev, lastName: e.target.value }))}
                 />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+
+            {/* Location Details (Province -> District -> Village -> Suburb) */}
+            <div className="grid grid-cols-4 gap-4">
+              <div>
+                <Label>Province</Label>
+                <Select
+                  value={citizenForm.province}
+                  onValueChange={(val) => setCitizenForm(prev => ({ ...prev, province: val, district: "" }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PROVINCES.map((province) => (
+                      <SelectItem key={province} value={province}>{province}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>District</Label>
+                <Select
+                  value={citizenForm.district}
+                  onValueChange={(val) => setCitizenForm(prev => ({ ...prev, district: val }))}
+                  disabled={!citizenForm.province}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {citizenForm.province && PROVINCES_AND_DISTRICTS[citizenForm.province]?.map((district) => (
+                      <SelectItem key={district} value={district}>{district}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Village/LLG</Label>
+                <Input
+                  placeholder="Village"
+                  value={citizenForm.village}
+                  onChange={(e) => setCitizenForm(prev => ({ ...prev, village: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Suburb</Label>
+                <Input
+                  placeholder="Suburb"
+                  value={citizenForm.suburb}
+                  onChange={(e) => setCitizenForm(prev => ({ ...prev, suburb: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            {/* Address Details (Section -> Lot -> Block -> Street) */}
+            <div className="grid grid-cols-4 gap-4">
+              <div>
+                <Label>Section</Label>
+                <Select
+                  value={citizenForm.section}
+                  onValueChange={(val) => setCitizenForm(prev => ({ ...prev, section: val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sec" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {numberOptions.map((num) => (
+                      <SelectItem key={`sec-${num}`} value={num}>{num}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Lot</Label>
+                <Select
+                  value={citizenForm.lot}
+                  onValueChange={(val) => setCitizenForm(prev => ({ ...prev, lot: val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Lot" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {numberOptions.map((num) => (
+                      <SelectItem key={`lot-${num}`} value={num}>{num}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Block</Label>
+                <Input
+                  placeholder="Block"
+                  value={citizenForm.block}
+                  onChange={(e) => setCitizenForm(prev => ({ ...prev, block: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Street</Label>
+                <Input
+                  placeholder="Street"
+                  value={citizenForm.address}
+                  onChange={(e) => setCitizenForm(prev => ({ ...prev, address: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <Label>Nationality</Label>
+                <Input
+                  placeholder="e.g. PNG"
+                  value={citizenForm.nationality}
+                  onChange={(e) => setCitizenForm(prev => ({ ...prev, nationality: e.target.value }))}
+                />
+              </div>
               <div>
                 <Label>National ID</Label>
-                <Input 
-                  placeholder="NID-XXXX-XXXXX"
+                <Input
+                  placeholder="NID Number"
                   value={citizenForm.nationalId}
                   onChange={(e) => setCitizenForm(prev => ({ ...prev, nationalId: e.target.value }))}
                 />
               </div>
               <div>
                 <Label>Date of Birth</Label>
-                <Input 
+                <Input
                   type="date"
                   value={citizenForm.dob}
                   onChange={(e) => setCitizenForm(prev => ({ ...prev, dob: e.target.value }))}
@@ -1057,60 +1798,26 @@ export default function RegistryPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label>Phone</Label>
-                <Input 
-                  placeholder="+675 XXXX XXXX"
+                <Input
+                  placeholder="+675 ..."
                   value={citizenForm.phone}
                   onChange={(e) => setCitizenForm(prev => ({ ...prev, phone: e.target.value }))}
                 />
               </div>
               <div>
                 <Label>Email</Label>
-                <Input 
-                  type="email" 
+                <Input
+                  type="email"
                   placeholder="email@example.com"
                   value={citizenForm.email}
                   onChange={(e) => setCitizenForm(prev => ({ ...prev, email: e.target.value }))}
                 />
               </div>
             </div>
-            <div>
-              <Label>Address</Label>
-              <Input 
-                placeholder="Section XX, Lot XX, Suburb"
-                value={citizenForm.address}
-                onChange={(e) => setCitizenForm(prev => ({ ...prev, address: e.target.value }))}
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label>Village</Label>
-                <Input 
-                  placeholder="Village name"
-                  value={citizenForm.village}
-                  onChange={(e) => setCitizenForm(prev => ({ ...prev, village: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label>District</Label>
-                <Input 
-                  placeholder="District"
-                  value={citizenForm.district}
-                  onChange={(e) => setCitizenForm(prev => ({ ...prev, district: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label>Province</Label>
-                <Input 
-                  placeholder="Province"
-                  value={citizenForm.province}
-                  onChange={(e) => setCitizenForm(prev => ({ ...prev, province: e.target.value }))}
-                />
-              </div>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNewCitizenModal(false)}>Cancel</Button>
-            <Button 
+            <Button
               onClick={handleCreateCitizen}
               disabled={createCitizenMutation.isPending}
             >
@@ -1127,124 +1834,240 @@ export default function RegistryPage() {
             <DialogTitle>New Business Registration</DialogTitle>
             <DialogDescription>Register a new business in the system</DialogDescription>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Legal Name *</Label>
-                <Input 
-                  placeholder="Company legal name"
-                  value={businessForm.legalName}
-                  onChange={(e) => setBusinessForm(prev => ({ ...prev, legalName: e.target.value }))}
-                />
+          <Tabs defaultValue="details" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="contact">Contact</TabsTrigger>
+              <TabsTrigger value="location">Location</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="details" className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Legal Name *</Label>
+                  <Input
+                    placeholder="Company legal name"
+                    value={businessForm.legalName}
+                    onChange={(e) => setBusinessForm(prev => ({ ...prev, legalName: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Trading Name</Label>
+                  <Input
+                    placeholder="Trading as..."
+                    value={businessForm.tradingName}
+                    onChange={(e) => setBusinessForm(prev => ({ ...prev, tradingName: e.target.value }))}
+                  />
+                </div>
               </div>
-              <div>
-                <Label>Trading Name</Label>
-                <Input 
-                  placeholder="Trading as..."
-                  value={businessForm.tradingName}
-                  onChange={(e) => setBusinessForm(prev => ({ ...prev, tradingName: e.target.value }))}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>TIN</Label>
+                  <Input
+                    placeholder="Tax Identification Number"
+                    value={businessForm.tin}
+                    onChange={(e) => setBusinessForm(prev => ({ ...prev, tin: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Origin *</Label>
+                  <Select
+                    value={businessForm.isForeignEnterprise ? "international" : "local"}
+                    onValueChange={(val) => setBusinessForm(prev => ({ ...prev, isForeignEnterprise: val === "international" }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select origin" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="local">Local Enterprise</SelectItem>
+                      <SelectItem value="international">International/Foreign Enterprise</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>TIN</Label>
-                <Input 
-                  placeholder="Tax Identification Number"
-                  value={businessForm.tin}
-                  onChange={(e) => setBusinessForm(prev => ({ ...prev, tin: e.target.value }))}
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Business Type</Label>
+                  <Select value={businessForm.businessType} onValueChange={(val) => setBusinessForm(prev => ({ ...prev, businessType: val }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="company">Company</SelectItem>
+                      <SelectItem value="sole_trader">Sole Trader</SelectItem>
+                      <SelectItem value="partnership">Partnership</SelectItem>
+                      <SelectItem value="ngo">NGO</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Industry</Label>
+                  <Input
+                    placeholder="e.g. Retail, Healthcare"
+                    value={businessForm.industry}
+                    onChange={(e) => setBusinessForm(prev => ({ ...prev, industry: e.target.value }))}
+                  />
+                </div>
               </div>
-              <div>
-                <Label>Business Type</Label>
-                <Select value={businessForm.businessType} onValueChange={(val) => setBusinessForm(prev => ({ ...prev, businessType: val }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="company">Company</SelectItem>
-                    <SelectItem value="sole_trader">Sole Trader</SelectItem>
-                    <SelectItem value="partnership">Partnership</SelectItem>
-                    <SelectItem value="ngo">NGO</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
+              <div className="space-y-2">
                 <Label>Owner Name</Label>
-                <Input 
+                <Input
                   placeholder="Primary owner name"
                   value={businessForm.ownerName}
                   onChange={(e) => setBusinessForm(prev => ({ ...prev, ownerName: e.target.value }))}
                 />
               </div>
-              <div>
-                <Label>Industry</Label>
-                <Input 
-                  placeholder="e.g. Retail, Healthcare"
-                  value={businessForm.industry}
-                  onChange={(e) => setBusinessForm(prev => ({ ...prev, industry: e.target.value }))}
-                />
+            </TabsContent>
+
+            <TabsContent value="contact" className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Contact Phone</Label>
+                  <Input
+                    placeholder="+675 XXX XXXX"
+                    value={businessForm.contactPhone}
+                    onChange={(e) => setBusinessForm(prev => ({ ...prev, contactPhone: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Contact Email</Label>
+                  <Input
+                    type="email"
+                    placeholder="business@example.com"
+                    value={businessForm.contactEmail}
+                    onChange={(e) => setBusinessForm(prev => ({ ...prev, contactEmail: e.target.value }))}
+                  />
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Contact Phone</Label>
-                <Input 
-                  placeholder="+675 XXX XXXX"
-                  value={businessForm.contactPhone}
-                  onChange={(e) => setBusinessForm(prev => ({ ...prev, contactPhone: e.target.value }))}
-                />
+            </TabsContent>
+
+            <TabsContent value="location" className="space-y-4 py-4">
+              {/* GPS Location Map */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">GPS Location</Label>
+                <div className="rounded-md overflow-hidden border">
+                  <BusinessLocationMap
+                    latitude={businessForm.latitude || null}
+                    longitude={businessForm.longitude || null}
+                    onLocationChange={(lat, lng) => setBusinessForm(prev => ({ ...prev, latitude: lat, longitude: lng }))}
+                    height="200px"
+                  />
+                </div>
               </div>
-              <div>
-                <Label>Contact Email</Label>
-                <Input 
-                  type="email" 
-                  placeholder="business@example.com"
-                  value={businessForm.contactEmail}
-                  onChange={(e) => setBusinessForm(prev => ({ ...prev, contactEmail: e.target.value }))}
-                />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Province</Label>
+                  <Select
+                    value={businessForm.province}
+                    onValueChange={(val) => setBusinessForm(prev => ({ ...prev, province: val, district: "" }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PROVINCES.map((province) => (
+                        <SelectItem key={`biz-prov-${province}`} value={province}>{province}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>District</Label>
+                  <Select
+                    value={businessForm.district}
+                    onValueChange={(val) => setBusinessForm(prev => ({ ...prev, district: val }))}
+                    disabled={!businessForm.province}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {businessForm.province && PROVINCES_AND_DISTRICTS[businessForm.province]?.map((district) => (
+                        <SelectItem key={`biz-dist-${district}`} value={district}>{district}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-            </div>
-            <div>
-              <Label>Physical Address</Label>
-              <Input 
-                placeholder="Full address"
-                value={businessForm.physicalAddress}
-                onChange={(e) => setBusinessForm(prev => ({ ...prev, physicalAddress: e.target.value }))}
-              />
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div>
-                <Label>Section</Label>
-                <Input 
-                  placeholder="XX"
-                  value={businessForm.section}
-                  onChange={(e) => setBusinessForm(prev => ({ ...prev, section: e.target.value }))}
-                />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Section</Label>
+                  <Select
+                    value={businessForm.section}
+                    onValueChange={(val) => setBusinessForm(prev => ({ ...prev, section: val }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sec" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[200px] overflow-y-auto">
+                      {numberOptions.map((num) => (
+                        <SelectItem key={`biz-sec-${num}`} value={num}>{num}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Lot</Label>
+                  <Select
+                    value={businessForm.lot}
+                    onValueChange={(val) => setBusinessForm(prev => ({ ...prev, lot: val }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Lot" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[200px] overflow-y-auto">
+                      {numberOptions.map((num) => (
+                        <SelectItem key={`biz-lot-${num}`} value={num}>{num}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div>
-                <Label>Lot</Label>
-                <Input 
-                  placeholder="XX"
-                  value={businessForm.lot}
-                  onChange={(e) => setBusinessForm(prev => ({ ...prev, lot: e.target.value }))}
-                />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Suburb</Label>
+                  <Input
+                    placeholder="Suburb"
+                    value={businessForm.suburb}
+                    onChange={(e) => setBusinessForm(prev => ({ ...prev, suburb: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Address Detail</Label>
+                  <Input
+                    placeholder="Block/Building/Street details"
+                    value={businessForm.physicalAddress}
+                    onChange={(e) => setBusinessForm(prev => ({ ...prev, physicalAddress: e.target.value }))}
+                  />
+                </div>
               </div>
-              <div>
-                <Label>Suburb</Label>
-                <Input 
-                  placeholder="Suburb name"
-                  value={businessForm.suburb}
-                  onChange={(e) => setBusinessForm(prev => ({ ...prev, suburb: e.target.value }))}
-                />
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Block</Label>
+                  <Input
+                    placeholder="Block"
+                    value={businessForm.block}
+                    onChange={(e) => setBusinessForm(prev => ({ ...prev, block: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Village/LLG</Label>
+                  <Input
+                    placeholder="Village"
+                    value={businessForm.village}
+                    onChange={(e) => setBusinessForm(prev => ({ ...prev, village: e.target.value }))}
+                  />
+                </div>
               </div>
-            </div>
-          </div>
+            </TabsContent>
+          </Tabs>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowNewBusinessModal(false)}>Cancel</Button>
-            <Button 
+            <Button
               onClick={handleCreateBusiness}
               disabled={createBusinessMutation.isPending}
             >
@@ -1254,6 +2077,105 @@ export default function RegistryPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </MainLayout>
+      <Dialog open={showNewAssetModal} onOpenChange={setShowNewAssetModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>New Asset Registration</DialogTitle>
+            <DialogDescription>Register a new asset or facility</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Asset Name *</Label>
+                <Input
+                  placeholder="e.g. City Hall Generator"
+                  value={assetForm.name}
+                  onChange={(e) => setAssetForm(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Asset Type *</Label>
+                <Input
+                  placeholder="e.g. Equipment, Building"
+                  value={assetForm.type}
+                  onChange={(e) => setAssetForm(prev => ({ ...prev, type: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Asset No / Tag</Label>
+                <Input
+                  placeholder="Asset ID"
+                  value={assetForm.assetNo}
+                  onChange={(e) => setAssetForm(prev => ({ ...prev, assetNo: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Condition</Label>
+                <Select
+                  value={assetForm.condition}
+                  onValueChange={(val) => setAssetForm(prev => ({ ...prev, condition: val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select condition" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="excellent">Excellent</SelectItem>
+                    <SelectItem value="good">Good</SelectItem>
+                    <SelectItem value="fair">Fair</SelectItem>
+                    <SelectItem value="poor">Poor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Location</Label>
+              <Input
+                placeholder="Physical location"
+                value={assetForm.location}
+                onChange={(e) => setAssetForm(prev => ({ ...prev, location: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label>Estimated Value (PGK)</Label>
+                <Input
+                  placeholder="0.00"
+                  value={assetForm.value}
+                  onChange={(e) => setAssetForm(prev => ({ ...prev, value: e.target.value }))}
+                />
+              </div>
+              <div>
+                <Label>Status</Label>
+                <Select
+                  value={assetForm.status}
+                  onValueChange={(val) => setAssetForm(prev => ({ ...prev, status: val }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                    <SelectItem value="retired">Retired</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewAssetModal(false)}>Cancel</Button>
+            <Button
+              onClick={handleCreateAsset}
+              disabled={createAssetMutation.isPending}
+            >
+              {createAssetMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Register Asset
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </MainLayout >
   );
 }

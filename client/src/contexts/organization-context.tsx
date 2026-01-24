@@ -9,6 +9,15 @@ interface Council {
   currencyCode: string | null;
   timezone: string | null;
   status: string | null;
+  logoUrl: string | null;
+  themeColor: string | null;
+  fontFamily: string | null;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  address: string | null;
+  dateFormat: string | null;
+  timeFormat: string | null;
 }
 
 interface OrganizationContextType {
@@ -31,9 +40,27 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
 
   useEffect(() => {
     if (organizations.length > 0 && !currentOrganization) {
-      setCurrentOrganization(organizations[0]);
+      // Load from localStorage or use first organization
+      const stored = localStorage.getItem('currentOrganization');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          setCurrentOrganization(parsed);
+        } catch {
+          setCurrentOrganization(organizations[0]);
+        }
+      } else {
+        setCurrentOrganization(organizations[0]);
+      }
     }
   }, [organizations, currentOrganization]);
+
+  // Persist to localStorage whenever it changes
+  useEffect(() => {
+    if (currentOrganization) {
+      localStorage.setItem('currentOrganization', JSON.stringify(currentOrganization));
+    }
+  }, [currentOrganization]);
 
   return (
     <OrganizationContext.Provider

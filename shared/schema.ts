@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, decimal, boolean, jsonb, date, char, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, decimal, boolean, jsonb, date, char, uuid, real } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -15,6 +15,18 @@ export const councils = pgTable("councils", {
   currencyCode: char("currency_code", { length: 3 }).notNull().default("PGK"),
   timezone: text("timezone").notNull().default("Pacific/Port_Moresby"),
   status: text("status").notNull().default("active"),
+  // Branding & Configuration
+  logoUrl: text("logo_url"),
+  themeColor: text("theme_color").default("#EAB308"), // Yellow-500
+  fontFamily: text("font_family").default("Inter"),
+  // Contact Details
+  email: text("email"),
+  phone: text("phone"),
+  website: text("website"),
+  address: text("address"),
+  // Localization
+  dateFormat: text("date_format").default("dd/MM/yyyy"),
+  timeFormat: text("time_format").default("HH:mm"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -37,8 +49,10 @@ export const users = pgTable("users", {
   fullName: text("full_name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
+  nationalId: text("national_id"),
   passwordHash: text("password_hash").notNull(),
   status: text("status").notNull().default("active"),
+  role: text("role").notNull().default("user"), // admin, user, inspector, etc.
   mfaEnabled: boolean("mfa_enabled").default(false),
   lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -99,10 +113,15 @@ export const citizens = pgTable("citizens", {
   sex: text("sex"), // male, female
   phone: text("phone"),
   email: text("email"),
-  address: text("address"),
+  address: text("address"), // Street name or description
+  section: text("section"),
+  lot: text("lot"),
+  block: text("block"),
+  suburb: text("suburb"),
   village: text("village"),
   district: text("district"),
   province: text("province"),
+  nationality: text("nationality"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -115,14 +134,61 @@ export const businesses = pgTable("businesses", {
   tradingName: text("trading_name"),
   businessType: text("business_type"), // Sole Trader, Partnership, Company
   industry: text("industry"),
-  ownerName: text("owner_name"),
+  ownerName: text("owner_name"), // Legacy field, to be deprecated
+  ownerUserId: varchar("owner_user_id"), // Link to user
   contactPhone: text("contact_phone"),
   contactEmail: text("contact_email"),
   physicalAddress: text("physical_address"),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
   section: text("section"),
   lot: text("lot"),
+  block: text("block"),
   suburb: text("suburb"),
-  status: text("status").default("active"),
+  village: text("village"),
+  district: text("district"),
+  province: text("province"),
+  status: text("status").default("pending_verification"), // pending_verification, verified, rejected
+  isForeignEnterprise: boolean("is_foreign_enterprise").default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const documents = pgTable("documents", {
+  documentId: varchar("document_id").primaryKey().default(sql`gen_random_uuid()`),
+  councilId: varchar("council_id").notNull(),
+  ownerType: text("owner_type").notNull(), // business, licence, user
+  ownerId: varchar("owner_id").notNull(),
+  type: text("type").notNull(), // certificate, id, lease, other
+  fileName: text("file_name").notNull(),
+  filePath: text("file_path").notNull(),
+  mimeType: text("mime_type").notNull(),
+  fileSize: integer("file_size").notNull(),
+  status: text("status").notNull().default("pending"),
+  rejectionReason: text("rejection_reason"),
+  verified: boolean("verified").default(false),
+  verifiedAt: timestamp("verified_at"),
+  verifiedBy: varchar("verified_by"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const businessVerificationRequests = pgTable("business_verification_requests", {
+  requestId: varchar("request_id").primaryKey().default(sql`gen_random_uuid()`),
+  businessId: varchar("business_id").notNull(),
+  councilId: varchar("council_id").notNull(),
+  status: text("status").notNull().default("pending"), // pending, approved, rejected, more_info
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: varchar("reviewed_by"),
+  comments: text("comments"),
+});
+
+export const otpVerifications = pgTable("otp_verifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  identifier: text("identifier").notNull(), // email or phone
+  code: text("code").notNull(),
+  type: text("type").notNull(), // email, sms
+  expiresAt: timestamp("expires_at").notNull(),
+  verified: boolean("verified").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -174,7 +240,21 @@ export const workflowDefinitions = pgTable("workflow_definitions", {
   councilId: varchar("council_id").notNull(),
   serviceId: varchar("service_id").notNull(),
   version: text("version").notNull().default("1.0"),
+  name: text("name"),
+  description: text("description"),
   active: boolean("active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const integrationConfigs = pgTable("integration_configs", {
+  configId: varchar("config_id").primaryKey().default(sql`gen_random_uuid()`),
+  councilId: varchar("council_id").notNull(),
+  name: text("name").notNull(),
+  type: text("type").notNull(),
+  status: text("status").default("disconnected"),
+  lastSyncAt: timestamp("last_sync_at"),
+  description: text("description"),
+  details: jsonb("details"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -186,6 +266,7 @@ export const workflowSteps = pgTable("workflow_steps", {
   orderNo: integer("order_no").notNull(),
   assigneeRole: text("assignee_role"),
   slaRule: text("sla_rule"), // e.g., "3_business_days"
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const serviceRequests = pgTable("service_requests", {
@@ -197,7 +278,25 @@ export const serviceRequests = pgTable("service_requests", {
   status: text("status").notNull().default("draft"), // draft, submitted, processing, approved, rejected
   channel: text("channel").notNull().default("web"), // web, mobile, counter
   formData: jsonb("form_data"),
+  processingData: jsonb("processing_data"), // For officer use: payments, approvals, meeting notes
+  requestRef: text("request_ref"), // Human readable ID e.g. "LIC-2024-001"
   submittedAt: timestamp("submitted_at"),
+  reviewedAt: timestamp("reviewed_at"),
+  inspectedAt: timestamp("inspected_at"),
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const notifications = pgTable("notifications", {
+  notificationId: varchar("notification_id").primaryKey().default(sql`gen_random_uuid()`),
+  councilId: varchar("council_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  type: text("type").notNull(), // info, success, warning, error
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  referenceType: text("reference_type"), // service_request, payment, etc
+  referenceId: varchar("reference_id"),
+  read: boolean("read").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -247,7 +346,8 @@ export const inspectionEvidence = pgTable("inspection_evidence", {
   inspectionId: varchar("inspection_id").notNull(),
   mediaType: text("media_type"), // photo, video, document
   url: text("url"),
-  hash: text("hash"),
+  title: text("title"),
+  signatureUrl: text("signature_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -288,6 +388,8 @@ export const payments = pgTable("payments", {
   method: text("method").notNull(), // cash, eftpos, bank_transfer, mobile_money
   provider: text("provider"), // BSP, Kina Bank, etc.
   status: text("status").notNull().default("pending"), // pending, completed, failed, refunded
+  externalReference: text("external_reference"),
+  paymentDetails: jsonb("payment_details"),
   paidAt: timestamp("paid_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -308,6 +410,11 @@ export const licences = pgTable("licences", {
   issueDate: date("issue_date"),
   expiryDate: date("expiry_date"),
   status: text("status").notNull().default("active"), // active, expired, suspended, revoked
+  licencePayloadHash: text("licence_payload_hash"),
+  pdfHash: text("pdf_hash"),
+  signedPdfHash: text("signed_pdf_hash"),
+  signatureMetadata: jsonb("signature_metadata"),
+  version: integer("version").default(1),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -418,6 +525,10 @@ export const complaintUpdates = pgTable("complaint_updates", {
 // ASSETS & FACILITIES
 // ================================
 
+// ================================
+// ASSETS & FACILITIES
+// ================================
+
 export const assets = pgTable("assets", {
   assetId: varchar("asset_id").primaryKey().default(sql`gen_random_uuid()`),
   councilId: varchar("council_id").notNull(),
@@ -427,6 +538,73 @@ export const assets = pgTable("assets", {
   location: text("location"),
   condition: text("condition"), // excellent, good, fair, poor
   value: text("value"),
+  status: text("status").default("active"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ================================
+// LICENSING REFERENCE DATA
+// ================================
+
+export const licenseTypes = pgTable("license_types", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  licenseName: text("license_name").notNull(),
+  licenseCategory: text("license_category").notNull(), // TRADE, ENTERTAINMENT, HEALTH, etc.
+  applicationForm: text("application_form"), // FORM.1, FORM.5 etc.
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const checklistRequirements = pgTable("checklist_requirements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  licenseTypeId: varchar("license_type_id").notNull(),
+  itemNumber: integer("item_number").notNull(),
+  documentName: text("document_name").notNull(),
+  responsibleEntity: text("responsible_entity"),
+  requirementNote: text("requirement_note"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const specialRequirements = pgTable("special_requirements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  licenseTypeId: varchar("license_type_id").notNull(),
+  requirementName: text("requirement_name").notNull(),
+  issuingAuthority: text("issuing_authority"),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ================================
+// LOCATIONS & GIS
+// ================================
+
+export const locationLevels = pgTable("location_levels", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  councilId: varchar("council_id").notNull(),
+  name: text("name").notNull(), // e.g. "Section", "Lot"
+  level: integer("level").notNull(), // 1, 2, 3, 4
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const licenseTypeFees = pgTable("license_type_fees", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  licenseTypeId: varchar("license_type_id").notNull(),
+  amount: decimal("amount", { precision: 12, scale: 2 }).notNull(),
+  currency: text("currency").notNull().default("PGK"),
+  effectiveDate: timestamp("effective_date").defaultNow().notNull(),
+  active: boolean("active").default(true),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const locations = pgTable("locations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  councilId: varchar("council_id").notNull(),
+  levelId: varchar("level_id").notNull(), // Link to definitions
+  code: text("code").notNull(), // "390", "01"
+  parentId: varchar("parent_id"), // Parent location UUID
+  boundary: jsonb("boundary"), // GeoJSON Polygon
+  centroid: text("centroid"), // "lat,lng"
   status: text("status").default("active"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -461,6 +639,129 @@ export const notices = pgTable("notices", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const purchaseOrders = pgTable("purchase_orders", {
+  orderId: varchar("order_id").primaryKey().default(sql`gen_random_uuid()`),
+  councilId: varchar("council_id").notNull(),
+  vendorId: varchar("vendor_id").notNull(), // Link to businesses
+  requestorId: varchar("requestor_id"), // Link to users
+  orderDate: date("order_date").defaultNow(),
+  expectedDate: date("expected_date"),
+  status: text("status").default("draft"), // draft, submitted, approved, received, cancelled
+  totalAmount: decimal("total_amount", { precision: 12, scale: 2 }).default("0"),
+  currency: char("currency", { length: 3 }).default("PGK"),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const purchaseOrderLines = pgTable("purchase_order_lines", {
+  lineId: varchar("line_id").primaryKey().default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id").notNull(),
+  description: text("description").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  unitPrice: decimal("unit_price", { precision: 12, scale: 2 }).notNull(),
+  lineTotal: decimal("line_total", { precision: 12, scale: 2 }).notNull(),
+});
+
+// ================================
+// TENANT CONFIGURATION
+// ================================
+export const tenantConfig = pgTable('tenant_config', {
+  configId: uuid('config_id').primaryKey().defaultRandom(),
+  councilId: varchar('council_id').references(() => councils.councilId, { onDelete: 'cascade' }).notNull(),
+
+  // Branding & Identity
+  councilName: text('council_name'),
+  shortName: text('short_name'),
+  logoUrl: text('logo_url'),
+  faviconUrl: text('favicon_url'),
+  tagline: text('tagline'),
+
+  // Theme Configuration (AI-extracted or manual)
+  primaryColor: text('primary_color').default('#1e40af'),
+  secondaryColor: text('secondary_color').default('#7c3aed'),
+  accentColor: text('accent_color').default('#f59e0b'),
+  backgroundRootColor: text('background_root_color').default('#EBECED'),
+  backgroundDefaultColor: text('background_default_color').default('#FCFCFC'),
+  backgroundHigherColor: text('background_higher_color').default('#F0F1F2'),
+  foregroundDefaultColor: text('foreground_default_color').default('#07080A'),
+  foregroundDimmerColor: text('foreground_dimmer_color').default('#3D4047'),
+  outlineColor: text('outline_color').default('#C0C3C4'),
+
+  // Advanced Color Overrides
+  primaryForeground: text('primary_foreground'),
+  positiveColor: text('positive_color').default('#10b981'),
+  warningColor: text('warning_color').default('#f59e0b'),
+  negativeColor: text('negative_color').default('#ef4444'),
+
+  sidebarBackground: text('sidebar_background'),
+  sidebarForeground: text('sidebar_foreground'),
+  headerBackground: text('header_background'),
+  headerForeground: text('header_foreground'),
+  cardBackground: text('card_background'),
+
+  // Component Styling
+  borderRadius: integer('border_radius').default(4),
+  buttonRadius: integer('button_radius').default(4),
+  cardRadius: integer('card_radius').default(8),
+  inputRadius: integer('input_radius').default(4),
+
+  fontFamily: text('font_family').default('Inter'),
+
+  // Location Hierarchy
+  locationLevels: jsonb('location_levels').$type<string[]>().default(['Country', 'Province', 'District', 'Ward']),
+
+  // Localization Settings
+  locale: text('locale').default('en-PG'),
+  timezone: text('timezone').default('Pacific/Port_Moresby'),
+  dateFormat: text('date_format').default('DD/MM/YYYY'),
+  timeFormat: text('time_format').default('HH:mm'),
+  firstDayOfWeek: text('first_day_of_week').default('monday'),
+
+  // Currency & Formatting
+  currency: text('currency').default('PGK'),
+  currencySymbol: text('currency_symbol').default('K'),
+  currencyPosition: text('currency_position').default('before'),
+  decimalSeparator: text('decimal_separator').default('.'),
+  thousandsSeparator: text('thousands_separator').default(','),
+
+  // Contact Information
+  address: text('address'),
+  phone: text('phone'),
+  email: text('email'),
+  website: text('website'),
+  emergencyContact: text('emergency_contact'),
+
+  // Social Media
+  facebook: text('facebook'),
+  twitter: text('twitter'),
+  linkedin: text('linkedin'),
+
+  // System Settings
+  enableMultiLanguage: text('enable_multi_language').default('false'),
+  supportedLanguages: jsonb('supported_languages').$type<string[]>().default(['en']),
+  enabledModules: jsonb('enabled_modules').$type<string[]>().default(['registry', 'licensing', 'services', 'payments', 'portal']),
+
+  // Metadata
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
+export const dynamicLocations = pgTable('dynamic_locations', {
+  locationId: uuid('location_id').primaryKey().defaultRandom(),
+  councilId: varchar('council_id').references(() => councils.councilId, { onDelete: 'cascade' }).notNull(),
+  level: text('level').notNull(),
+  levelIndex: text('level_index').notNull(),
+  name: text('name').notNull(),
+  code: text('code'),
+  parentId: uuid('parent_id'),
+  latitude: text('latitude'),
+  longitude: text('longitude'),
+  bounds: jsonb('bounds'),
+  isActive: text('is_active').default('true'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
+});
+
 // ================================
 // INSERT SCHEMAS (for validation)
 // ================================
@@ -476,7 +777,16 @@ export const insertAccountSchema = createInsertSchema(accounts).omit({ accountId
 export const insertServiceSchema = createInsertSchema(services).omit({ serviceId: true, createdAt: true });
 export const insertFeeScheduleSchema = createInsertSchema(feeSchedules).omit({ feeId: true });
 export const insertServiceRequestSchema = createInsertSchema(serviceRequests).omit({ requestId: true, createdAt: true });
-export const insertInspectionSchema = createInsertSchema(inspections).omit({ inspectionId: true, createdAt: true });
+export const insertInspectionSchema = createInsertSchema(inspections, {
+  scheduledAt: z.coerce.date().optional().nullable(),
+  performedAt: z.coerce.date().optional().nullable(),
+  requestId: z.string().optional().nullable(),
+  inspectorUserId: z.string().optional().nullable(),
+  result: z.string().optional().nullable(),
+  remarks: z.string().optional().nullable(),
+  latitude: z.string().optional().nullable(),
+  longitude: z.string().optional().nullable(),
+}).omit({ inspectionId: true, createdAt: true });
 export const insertInvoiceSchema = createInsertSchema(invoices).omit({ invoiceId: true, createdAt: true });
 export const insertPaymentSchema = createInsertSchema(payments).omit({ paymentId: true, createdAt: true });
 export const insertLicenceSchema = createInsertSchema(licences).omit({ licenceId: true, createdAt: true });
@@ -488,6 +798,28 @@ export const insertEnforcementCaseSchema = createInsertSchema(enforcementCases).
 export const insertNoticeSchema = createInsertSchema(notices).omit({ noticeId: true, createdAt: true });
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ auditId: true, createdAt: true });
 export const insertAssetSchema = createInsertSchema(assets).omit({ assetId: true, createdAt: true });
+export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders).omit({ orderId: true, createdAt: true });
+export const insertPurchaseOrderLineSchema = createInsertSchema(purchaseOrderLines).omit({ lineId: true });
+export const insertLicenseTypeSchema = createInsertSchema(licenseTypes).omit({ id: true, createdAt: true });
+export const insertChecklistRequirementSchema = createInsertSchema(checklistRequirements).omit({ id: true, createdAt: true });
+export const insertSpecialRequirementSchema = createInsertSchema(specialRequirements).omit({ id: true, createdAt: true });
+export const insertDocumentSchema = createInsertSchema(documents).omit({ documentId: true, createdAt: true });
+export const insertBusinessVerificationRequestSchema = createInsertSchema(businessVerificationRequests).omit({ requestId: true, submittedAt: true });
+
+export const insertLocationLevelSchema = createInsertSchema(locationLevels).omit({ id: true, createdAt: true });
+export const insertLocationSchema = createInsertSchema(locations).omit({ id: true, createdAt: true });
+
+export const insertTenantConfigSchema = createInsertSchema(tenantConfig).omit({ configId: true, createdAt: true, updatedAt: true });
+export const insertDynamicLocationSchema = createInsertSchema(dynamicLocations).omit({ locationId: true, createdAt: true, updatedAt: true });
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ notificationId: true, createdAt: true });
+export const insertLicenseTypeFeeSchema = createInsertSchema(licenseTypeFees, {
+  effectiveDate: z.coerce.date().optional()
+}).omit({ id: true, createdAt: true });
+
+export const insertWorkflowDefinitionSchema = createInsertSchema(workflowDefinitions).omit({ workflowId: true, createdAt: true });
+export const insertWorkflowStepSchema = createInsertSchema(workflowSteps).omit({ stepId: true });
+export const insertIntegrationConfigSchema = createInsertSchema(integrationConfigs).omit({ configId: true, createdAt: true });
 
 // ================================
 // TYPE EXPORTS
@@ -496,38 +828,106 @@ export const insertAssetSchema = createInsertSchema(assets).omit({ assetId: true
 export type Council = typeof councils.$inferSelect;
 export type InsertCouncil = z.infer<typeof insertCouncilSchema>;
 export type CouncilUnit = typeof councilUnits.$inferSelect;
+export type InsertCouncilUnit = z.infer<typeof insertCouncilUnitSchema>;
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Role = typeof roles.$inferSelect;
+export type InsertRole = z.infer<typeof insertRoleSchema>;
 export type Permission = typeof permissions.$inferSelect;
+export type InsertPermission = z.infer<typeof insertPermissionSchema>;
 export type Citizen = typeof citizens.$inferSelect;
 export type InsertCitizen = z.infer<typeof insertCitizenSchema>;
 export type Business = typeof businesses.$inferSelect;
 export type InsertBusiness = z.infer<typeof insertBusinessSchema>;
 export type Account = typeof accounts.$inferSelect;
+export type InsertAccount = z.infer<typeof insertAccountSchema>;
 export type Service = typeof services.$inferSelect;
+export type InsertService = z.infer<typeof insertServiceSchema>;
 export type FeeSchedule = typeof feeSchedules.$inferSelect;
+export type InsertFeeSchedule = z.infer<typeof insertFeeScheduleSchema>;
 export type ServiceRequest = typeof serviceRequests.$inferSelect;
+export type InsertServiceRequest = z.infer<typeof insertServiceRequestSchema>;
+
+export type Document = typeof documents.$inferSelect;
+export type InsertDocument = z.infer<typeof insertDocumentSchema>;
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
+export type BusinessVerificationRequest = typeof businessVerificationRequests.$inferSelect;
+export type InsertBusinessVerificationRequest = z.infer<typeof insertBusinessVerificationRequestSchema>;
+
 export type WorkflowDefinition = typeof workflowDefinitions.$inferSelect;
 export type WorkflowStep = typeof workflowSteps.$inferSelect;
 export type WorkflowInstance = typeof workflowInstances.$inferSelect;
+
 export type Inspection = typeof inspections.$inferSelect;
+export type InsertInspection = z.infer<typeof insertInspectionSchema>;
 export type InspectionFinding = typeof inspectionFindings.$inferSelect;
 export type InspectionEvidence = typeof inspectionEvidence.$inferSelect;
+
 export type Invoice = typeof invoices.$inferSelect;
+export type InsertInvoice = z.infer<typeof insertInvoiceSchema>;
 export type InvoiceLine = typeof invoiceLines.$inferSelect;
+
 export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type PaymentAllocation = typeof paymentAllocations.$inferSelect;
+
 export type Licence = typeof licences.$inferSelect;
+export type InsertLicence = z.infer<typeof insertLicenceSchema>;
 export type LicenceRenewal = typeof licenceRenewals.$inferSelect;
+
 export type Property = typeof properties.$inferSelect;
+export type InsertProperty = z.infer<typeof insertPropertySchema>;
 export type RateAssessment = typeof rateAssessments.$inferSelect;
+
 export type Market = typeof markets.$inferSelect;
+export type InsertMarket = z.infer<typeof insertMarketSchema>;
 export type Stall = typeof stalls.$inferSelect;
+export type InsertStall = z.infer<typeof insertStallSchema>;
+
 export type Complaint = typeof complaints.$inferSelect;
+export type InsertComplaint = z.infer<typeof insertComplaintSchema>;
 export type ComplaintUpdate = typeof complaintUpdates.$inferSelect;
+
 export type EnforcementCase = typeof enforcementCases.$inferSelect;
+export type InsertEnforcementCase = z.infer<typeof insertEnforcementCaseSchema>;
 export type Notice = typeof notices.$inferSelect;
+export type InsertNotice = z.infer<typeof insertNoticeSchema>;
+
 export type AuditLog = typeof auditLogs.$inferSelect;
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+
 export type Asset = typeof assets.$inferSelect;
 export type InsertAsset = z.infer<typeof insertAssetSchema>;
+
+export type LicenseType = typeof licenseTypes.$inferSelect;
+export type InsertLicenseType = z.infer<typeof insertLicenseTypeSchema>;
+
+export type ChecklistRequirement = typeof checklistRequirements.$inferSelect;
+export type InsertChecklistRequirement = z.infer<typeof insertChecklistRequirementSchema>;
+
+export type SpecialRequirement = typeof specialRequirements.$inferSelect;
+export type InsertSpecialRequirement = z.infer<typeof insertSpecialRequirementSchema>;
+
+export type LicenseTypeFee = typeof licenseTypeFees.$inferSelect;
+export type InsertLicenseTypeFee = z.infer<typeof insertLicenseTypeFeeSchema>;
+
+export type LocationLevel = typeof locationLevels.$inferSelect;
+export type InsertLocationLevel = z.infer<typeof insertLocationLevelSchema>;
+
+
+export type Location = typeof locations.$inferSelect;
+export type InsertLocation = z.infer<typeof insertLocationSchema>;
+
+export type TenantConfig = typeof tenantConfig.$inferSelect;
+export type InsertTenantConfig = z.infer<typeof insertTenantConfigSchema>;
+export type DynamicLocation = typeof dynamicLocations.$inferSelect;
+export type InsertDynamicLocation = z.infer<typeof insertDynamicLocationSchema>;
+
+export type InsertWorkflowDefinition = z.infer<typeof insertWorkflowDefinitionSchema>;
+export type InsertWorkflowStep = z.infer<typeof insertWorkflowStepSchema>;
+
+export type IntegrationConfig = typeof integrationConfigs.$inferSelect;
+export type InsertIntegrationConfig = z.infer<typeof insertIntegrationConfigSchema>;

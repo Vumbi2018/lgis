@@ -153,7 +153,7 @@ Create new property.
 
 ### Assets
 
-#### GET /api/assets
+#### GET /api/v1/assets
 List all council assets.
 
 **Response:**
@@ -172,6 +172,35 @@ List all council assets.
   }
 ]
 ```
+
+#### POST /api/v1/assets
+Create new asset.
+
+---
+
+### Procurement
+
+#### GET /api/v1/procurement/orders
+List purchase orders.
+
+**Response:**
+```json
+[
+  {
+    "orderId": "uuid",
+    "description": "Office Supplies",
+    "totalAmount": 1500.50,
+    "status": "approved",
+    "orderDate": "2024-03-20"
+  }
+]
+```
+
+#### POST /api/v1/procurement/orders
+Create purchase order.
+
+#### GET /api/v1/procurement/orders/:id
+Get purchase order details with line items.
 
 ---
 
@@ -306,6 +335,8 @@ Content-Type: application/json
 - `GET /api/v1/stalls`
 - `GET /api/v1/enforcement`
 - `GET /api/v1/audit-logs`
+- `GET /api/v1/assets`
+- `GET /api/v1/procurement/orders`
 
 ---
 
