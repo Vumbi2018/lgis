@@ -16,7 +16,7 @@ export const APP_VERSION = {
     /** Minor version number */
     minor: 1,
     /** Patch version number */
-    patch: 1,
+    patch: 2,
     /** Pre-release label (e.g., 'alpha', 'beta', 'rc.1') */
     preRelease: '',
     /** Build metadata (e.g., commit hash) */

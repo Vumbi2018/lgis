@@ -82,7 +82,7 @@ export function setupAuth(app: Express) {
             createTableIfMissing: false // Table is created via Drizzle schema (db:push)
         }),
         cookie: {
-            secure: process.env.NODE_ENV === "production",
+            secure: process.env.NODE_ENV === "production" && process.env.HTTPS === "true", // Only use secure cookies if HTTPS is explicitly enabled
             maxAge: 24 * 60 * 60 * 1000 // 24 hours
         }
     };
