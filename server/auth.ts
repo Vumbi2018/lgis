@@ -6,7 +6,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User } from "@shared/schema";
-import { User } from "@shared/schema";
+
 
 const scryptAsync = promisify(scrypt);
 
@@ -79,7 +79,7 @@ export function setupAuth(app: Express) {
         store: new PgSession({
             pool: pool,
             tableName: 'session',
-            createTableIfMissing: true // Ensure it exists if db:push missed it, but we added to schema so it should be there
+            createTableIfMissing: false // Table is created via Drizzle schema (db:push)
         }),
         cookie: {
             secure: process.env.NODE_ENV === "production",

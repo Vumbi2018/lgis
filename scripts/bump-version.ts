@@ -13,8 +13,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-const PACKAGE_JSON_PATH = path.join(__dirname, '..', 'package.json');
-const VERSION_TS_PATH = path.join(__dirname, '..', 'shared', 'version.ts');
+const PACKAGE_JSON_PATH = path.join(process.cwd(), 'package.json');
+const VERSION_TS_PATH = path.join(process.cwd(), 'shared', 'version.ts');
 
 type BumpType = 'major' | 'minor' | 'patch';
 
