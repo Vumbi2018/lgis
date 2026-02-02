@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { MainLayout } from "@/components/layout/main-layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,26 @@ const defaultIcon = new Icon({
 
 export default function GISPage() {
   const [activeTab, setActiveTab] = useState("businesses");
+  const [, setLocation] = useLocation();
+
+  // Map center and zoom state
+  const [mapCenter, setMapCenter] = useState<[number, number]>([-9.4438, 147.1803]); // Port Moresby default
+  const [mapZoom, setMapZoom] = useState<number>(12);
+
+  // Parse URL parameters on mount and update map
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlLat = urlParams.get('lat');
+    const urlLng = urlParams.get('lng');
+    const urlZoom = urlParams.get('zoom');
+
+    if (urlLat && urlLng) {
+      setMapCenter([parseFloat(urlLat), parseFloat(urlLng)]);
+    }
+    if (urlZoom) {
+      setMapZoom(parseInt(urlZoom));
+    }
+  }, []);
 
   // Layer States
   const [layers, setLayers] = useState({
@@ -167,6 +188,10 @@ export default function GISPage() {
           <div className="text-sm font-medium px-4 flex items-center gap-2">
             <span className="text-muted-foreground">Map Source:</span>
             <Badge variant="outline" className="font-mono">Satellite (ESRI)</Badge>
+            {/* DEBUG INDICATOR */}
+            <Badge variant="secondary" className="font-mono text-xs">
+              Loaded: {businessMarkers.length} Bus | {requestMarkers.length} Apps
+            </Badge>
           </div>
         </div>
 
@@ -178,8 +203,8 @@ export default function GISPage() {
               </div>
             ) : (
               <MapContainer
-                center={defaultCenter}
-                zoom={14}
+                center={mapCenter}
+                zoom={mapZoom}
                 style={{ height: "100%", width: "100%" }}
               >
                 <LayersControl position="topright">
@@ -227,10 +252,16 @@ export default function GISPage() {
                   <>
                     <TabsContent value="businesses" className="m-0 p-0 h-full w-full">
                       {businessMarkers.map((business: any) => (
-                        <Marker
+                        <CircleMarker
                           key={business.businessId}
-                          position={[parseFloat(business.latitude), parseFloat(business.longitude)]}
-                          icon={defaultIcon}
+                          center={[parseFloat(business.latitude), parseFloat(business.longitude)]}
+                          radius={8}
+                          pathOptions={{
+                            color: "white",
+                            fillColor: "#F4C400",
+                            fillOpacity: 1,
+                            weight: 2
+                          }}
                         >
                           <Popup>
                             <div className="p-2 space-y-2 min-w-[200px]">
@@ -243,10 +274,16 @@ export default function GISPage() {
                               <div className="text-xs pt-1 mt-1 font-mono">
                                 Reg No: {business.registrationNo}
                               </div>
-                              <Button size="sm" className="w-full h-7 bg-[#0F0F0F] text-[#F4C400] text-xs hover:bg-black/80">View Details</Button>
+                              <Button
+                                size="sm"
+                                className="w-full h-7 bg-[#0F0F0F] text-[#F4C400] text-xs hover:bg-black/80"
+                                onClick={() => setLocation(`/registry/business/${business.businessId}`)}
+                              >
+                                View Details
+                              </Button>
                             </div>
                           </Popup>
-                        </Marker>
+                        </CircleMarker>
                       ))}
                     </TabsContent>
 
@@ -277,7 +314,13 @@ export default function GISPage() {
                               </div>
                               <p className="text-xs font-medium">Applicant: {req.formData?.businessName || req.formData?.applicantName || 'N/A'}</p>
                               <p className="text-xs text-muted-foreground">{req.physicalAddress}</p>
-                              <Button size="sm" className="w-full h-7 bg-[#0F0F0F] text-[#F4C400] text-xs hover:bg-black/80">Process Application</Button>
+                              <Button
+                                size="sm"
+                                className="w-full h-7 bg-[#0F0F0F] text-[#F4C400] text-xs hover:bg-black/80"
+                                onClick={() => setLocation(`/licensing/request-details/${req.requestId}`)}
+                              >
+                                Process Application
+                              </Button>
                             </div>
                           </Popup>
                         </CircleMarker>

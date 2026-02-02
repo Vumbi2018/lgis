@@ -1248,7 +1248,7 @@ export default function RequestDetailsPage() {
                         <Button variant="outline" onClick={() => setScheduleDialogOpen(false)}>Cancel</Button>
                         <Button
                             className="bg-[#0F0F0F] text-[#F4C400] hover:bg-black/90 font-bold border border-[#F4C400]/20"
-                            onClick={() => scheduleInspectionMutation.mutate()}
+                            onClick={() => scheduleInspectionMutation.mutate(undefined)}
                             disabled={!inspectionDate || scheduleInspectionMutation.isPending}
                         >
                             {scheduleInspectionMutation.isPending ? (

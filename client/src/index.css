@@ -32,12 +32,12 @@
   --color-accent: var(--accent-primary-dimmest);
   --color-accent-foreground: var(--accent-primary-strongest);
 
-  --color-sidebar: var(--sidebar-background, var(--background-highest));
-  --color-sidebar-foreground: var(--sidebar-foreground, var(--foreground-default));
-  --color-header: var(--header-background, var(--background-default));
-  --color-header-foreground: var(--header-foreground, var(--foreground-default));
-  --color-card: var(--card-background, var(--background-default));
-  --color-card-foreground: var(--foreground-default);
+  --color-sidebar: #0F0F0F !important;
+  --color-sidebar-foreground: #FFFFFF !important;
+  --color-header: #F4C400 !important;
+  --color-header-foreground: #0F0F0F !important;
+  --color-card: var(--card-background, #FFFFFF);
+  --color-card-foreground: #0F0F0F;
 
   --color-destructive: var(--accent-negative-default);
   --color-destructive-foreground: hsl(var(--destructive-foreground));
@@ -113,6 +113,11 @@
   /* Hover state for yellow */
   --color-brand-primary-active: #C29F00;
   /* Active/pressed state */
+  --color-primary: 45 100% 50% !important;
+  --primary: 48 100% 48% !important;
+  /* Gold Buttons */
+  --primary-foreground: 0 0% 0% !important;
+  /* Black text on Gold */
 
   /* 1.2 UI Foundation Colors */
   --color-ui-black: #0F0F0F;

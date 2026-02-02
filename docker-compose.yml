@@ -4,7 +4,7 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - DATABASE_URL=postgresql://lgis_user:StrongPassword123%21@db:5432/lgis
+      - DATABASE_URL=postgresql://lgis_user:StrongPassword123%21@db:5432/database_backup
       - NODE_ENV=production
       - SESSION_SECRET=ReplaceWithAStrongSecretKey
     depends_on:
@@ -16,12 +16,12 @@ services:
     environment:
       - POSTGRES_USER=lgis_user
       - POSTGRES_PASSWORD=StrongPassword123!
-      - POSTGRES_DB=lgis
+      - POSTGRES_DB=database_backup
     volumes:
       - db_data:/var/lib/postgresql/data
-      # Mount the backup file to the initialization directory
+      # Mount the cleaned backup file to the initialization directory
       # This AUTOMATICALLY restores the database on the FIRST run (empty volume)
-      - ./database_backup.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./database_backup_clean.sql:/docker-entrypoint-initdb.d/init.sql
     restart: always
 
 volumes:

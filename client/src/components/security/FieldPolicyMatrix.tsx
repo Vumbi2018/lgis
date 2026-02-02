@@ -1,4 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useOrganization } from "@/contexts/organization-context";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +26,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Shield, Lock, Eye, EyeOff, Check, X, Minus } from "lucide-react";
+import { Shield, Lock, Eye, EyeOff, Check, X, Minus, Search } from "lucide-react";
 
 interface FieldPolicy {
     entity: string;
@@ -37,97 +41,102 @@ interface FieldPolicy {
 type AccessLevel = 'full' | 'masked' | 'partial' | 'none';
 
 export function FieldPolicyMatrix() {
+    const { toast } = useToast();
+    const { currentOrganization } = useOrganization();
+    const queryClient = useQueryClient();
+
     const [selectedEntity, setSelectedEntity] = useState<string>('citizen');
     const [editMode, setEditMode] = useState(false);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [localPolicies, setLocalPolicies] = useState<FieldPolicy[]>([]);
 
-    // Sample field policies
     const entities = ['citizen', 'business', 'payment', 'license'];
 
-    const fieldPolicies: FieldPolicy[] = [
-        {
-            entity: 'citizen',
-            field: 'citizenId',
-            public: 'full',
-            officer: 'full',
-            manager: 'full',
-            admin: 'full',
-            breakGlass: 'full'
+    // Fetch field policies
+    const { data: fetchedPolicies, isLoading } = useQuery({
+        queryKey: ["/api/v1/field-policies", currentOrganization?.councilId],
+        queryFn: async () => {
+            if (!currentOrganization?.councilId) return [];
+            const res = await apiRequest("GET", `/api/v1/field-policies`, undefined, {
+                "x-council-id": currentOrganization.councilId
+            });
+            return res.json();
         },
-        {
-            entity: 'citizen',
-            field: 'firstName',
-            public: 'full',
-            officer: 'full',
-            manager: 'full',
-            admin: 'full',
-            breakGlass: 'full'
-        },
-        {
-            entity: 'citizen',
-            field: 'lastName',
-            public: 'full',
-            officer: 'full',
-            manager: 'full',
-            admin: 'full',
-            breakGlass: 'full'
-        },
-        {
-            entity: 'citizen',
-            field: 'nationalId',
-            public: 'none',
-            officer: 'masked',
-            manager: 'full',
-            admin: 'full',
-            breakGlass: 'full'
-        },
-        {
-            entity: 'citizen',
-            field: 'dob',
-            public: 'none',
-            officer: 'none',
-            manager: 'full',
-            admin: 'full',
-            breakGlass: 'full'
-        },
-        {
-            entity: 'citizen',
-            field: 'phone',
-            public: 'none',
-            officer: 'full',
-            manager: 'full',
-            admin: 'full',
-            breakGlass: 'full'
-        },
-        {
-            entity: 'citizen',
-            field: 'email',
-            public: 'none',
-            officer: 'full',
-            manager: 'full',
-            admin: 'full',
-            breakGlass: 'full'
-        },
-        {
-            entity: 'citizen',
-            field: 'address',
-            public: 'partial',
-            officer: 'full',
-            manager: 'full',
-            admin: 'full',
-            breakGlass: 'full'
-        },
-        {
-            entity: 'citizen',
-            field: 'bankDetails',
-            public: 'none',
-            officer: 'none',
-            manager: 'none',
-            admin: 'masked',
-            breakGlass: 'full'
-        },
-    ];
+        enabled: !!currentOrganization?.councilId
+    });
 
-    const filteredPolicies = fieldPolicies.filter(p => p.entity === selectedEntity);
+    // Merge fetched policies with defaults
+    useEffect(() => {
+        if (!fetchedPolicies) return;
+        // In a real app we might merge with a static list of ALL possible fields
+        // For now, let's just use what comes back, or default to the sample list if empty (for demo)
+        if (fetchedPolicies.length > 0) {
+            setLocalPolicies(fetchedPolicies);
+        } else {
+            // If no policies in DB, maybe seed with defaults or show empty? 
+            // Let's stick to the static list as "template" but override with DB values
+            setLocalPolicies(defaultPolicies);
+        }
+    }, [fetchedPolicies]);
+
+    // Save mutation
+    const saveMutation = useMutation({
+        mutationFn: async (policy: FieldPolicy) => {
+            const res = await apiRequest("POST", "/api/v1/field-policies", policy, {
+                "x-council-id": currentOrganization?.councilId || ""
+            });
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["/api/v1/field-policies"] });
+        },
+        onError: () => {
+            toast({
+                title: "Failed to save",
+                description: "Could not update policy.",
+                variant: "destructive",
+            });
+        }
+    });
+
+    const handleSave = async () => {
+        // Save all local modified policies
+        // Ideally we only save changed ones, but for simplicity we can save the current view/entity
+        // checking against original is better optimization.
+
+        let successCount = 0;
+        for (const policy of localPolicies) {
+            try {
+                // Only save if it belongs to current view (or save all)
+                // Let's save all in localPolicies
+                await saveMutation.mutateAsync(policy);
+                successCount++;
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        if (successCount > 0) {
+            toast({
+                title: "Policies Saved",
+                description: `Successfully updated field policies.`,
+            });
+            setEditMode(false);
+        }
+    };
+
+    const handlePolicyChange = (field: string, role: string, level: AccessLevel) => {
+        setLocalPolicies(prev => prev.map(p =>
+            p.field === field && p.entity === selectedEntity
+                ? { ...p, [role]: level }
+                : p
+        ));
+    };
+
+    const filteredPolicies = localPolicies.filter(p =>
+        p.entity === selectedEntity &&
+        p.field.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const getAccessIcon = (level: AccessLevel) => {
         switch (level) {
@@ -139,17 +148,9 @@ export function FieldPolicyMatrix() {
                 return <Minus className="h-4 w-4 text-accent-primary-default" />;
             case 'none':
                 return <X className="h-4 w-4 text-negative" />;
+            default:
+                return <X className="h-4 w-4 text-gray-300" />;
         }
-    };
-
-    const getAccessBadge = (level: AccessLevel) => {
-        const variants = {
-            full: 'bg-positive/10 text-positive border-positive/20',
-            masked: 'bg-warning/10 text-warning border-warning/20',
-            partial: 'bg-primary/10 text-primary border-primary/20',
-            none: 'bg-negative/10 text-negative border-negative/20'
-        };
-        return variants[level];
     };
 
     return (
@@ -178,21 +179,32 @@ export function FieldPolicyMatrix() {
                 </div>
             </CardHeader>
             <CardContent className="space-y-6">
-                <div className="flex gap-2">
-                    {entities.map(entity => (
-                        <Button
-                            key={entity}
-                            size="sm"
-                            variant={selectedEntity === entity ? "default" : "outline"}
-                            onClick={() => setSelectedEntity(entity)}
-                            className={`capitalize rounded-lg px-4 ${selectedEntity === entity
-                                ? "bg-accent-primary-default text-background-default border-accent-primary-default"
-                                : "text-foreground-dimmer border-outline-dimmer"
-                                }`}
-                        >
-                            {entity}
-                        </Button>
-                    ))}
+                <div className="flex flex-col md:flex-row gap-4 items-center">
+                    <div className="flex gap-2 flex-1">
+                        {entities.map(entity => (
+                            <Button
+                                key={entity}
+                                size="sm"
+                                variant={selectedEntity === entity ? "default" : "outline"}
+                                onClick={() => setSelectedEntity(entity)}
+                                className={`capitalize rounded-lg px-4 ${selectedEntity === entity
+                                    ? "bg-accent-primary-default text-background-default border-accent-primary-default"
+                                    : "text-foreground-dimmer border-outline-dimmer"
+                                    }`}
+                            >
+                                {entity}
+                            </Button>
+                        ))}
+                    </div>
+                    <div className="relative w-full md:w-64 group">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-black transition-colors" />
+                        <Input
+                            placeholder="Search fields..."
+                            className="pl-10 h-10 border-outline-dimmer bg-background-higher"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                    </div>
                 </div>
 
                 {/* Access Level Legend */}
@@ -260,9 +272,13 @@ export function FieldPolicyMatrix() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {filteredPolicies.map((policy, index) => (
+                                {isLoading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="text-center py-8">Loading policies...</TableCell>
+                                    </TableRow>
+                                ) : filteredPolicies.map((policy) => (
                                     <TableRow
-                                        key={policy.field}
+                                        key={`${policy.entity}-${policy.field}`}
                                         className="hover:bg-black/5 dark:hover:bg-white/5 transition-all"
                                         style={{ borderColor: 'var(--outline-dimmer)' }}
                                     >
@@ -271,7 +287,7 @@ export function FieldPolicyMatrix() {
                                         </TableCell>
                                         <TableCell className="text-center">
                                             {editMode ? (
-                                                <AccessLevelSelector value={policy.public} onChange={() => { }} />
+                                                <AccessLevelSelector value={policy.public} onChange={(v) => handlePolicyChange(policy.field, 'public', v)} />
                                             ) : (
                                                 <div className="flex justify-center">
                                                     {getAccessIcon(policy.public)}
@@ -280,7 +296,7 @@ export function FieldPolicyMatrix() {
                                         </TableCell>
                                         <TableCell className="text-center">
                                             {editMode ? (
-                                                <AccessLevelSelector value={policy.officer} onChange={() => { }} />
+                                                <AccessLevelSelector value={policy.officer} onChange={(v) => handlePolicyChange(policy.field, 'officer', v)} />
                                             ) : (
                                                 <div className="flex justify-center">
                                                     {getAccessIcon(policy.officer)}
@@ -289,7 +305,7 @@ export function FieldPolicyMatrix() {
                                         </TableCell>
                                         <TableCell className="text-center">
                                             {editMode ? (
-                                                <AccessLevelSelector value={policy.manager} onChange={() => { }} />
+                                                <AccessLevelSelector value={policy.manager} onChange={(v) => handlePolicyChange(policy.field, 'manager', v)} />
                                             ) : (
                                                 <div className="flex justify-center">
                                                     {getAccessIcon(policy.manager)}
@@ -298,7 +314,7 @@ export function FieldPolicyMatrix() {
                                         </TableCell>
                                         <TableCell className="text-center">
                                             {editMode ? (
-                                                <AccessLevelSelector value={policy.admin} onChange={() => { }} />
+                                                <AccessLevelSelector value={policy.admin} onChange={(v) => handlePolicyChange(policy.field, 'admin', v)} />
                                             ) : (
                                                 <div className="flex justify-center">
                                                     {getAccessIcon(policy.admin)}
@@ -307,7 +323,13 @@ export function FieldPolicyMatrix() {
                                         </TableCell>
                                         <TableCell className="text-center">
                                             <div className="flex justify-center">
-                                                {getAccessIcon(policy.breakGlass)}
+                                                {editMode ? (
+                                                    <AccessLevelSelector value={policy.breakGlass} onChange={(v) => handlePolicyChange(policy.field, 'breakGlass', v)} />
+                                                ) : (
+                                                    <div className="flex justify-center">
+                                                        {getAccessIcon(policy.breakGlass)}
+                                                    </div>
+                                                )}
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -322,7 +344,7 @@ export function FieldPolicyMatrix() {
                         <Button variant="outline" onClick={() => setEditMode(false)} className="text-foreground-default border-outline-dimmer">
                             Cancel
                         </Button>
-                        <Button className="btn-primary">
+                        <Button className="btn-primary" onClick={handleSave}>
                             Save Changes
                         </Button>
                     </div>
@@ -331,6 +353,91 @@ export function FieldPolicyMatrix() {
         </Card>
     );
 }
+
+// Default Data for seeding/fallback
+const defaultPolicies: FieldPolicy[] = [
+    {
+        entity: 'citizen',
+        field: 'citizenId',
+        public: 'full',
+        officer: 'full',
+        manager: 'full',
+        admin: 'full',
+        breakGlass: 'full'
+    },
+    {
+        entity: 'citizen',
+        field: 'firstName',
+        public: 'full',
+        officer: 'full',
+        manager: 'full',
+        admin: 'full',
+        breakGlass: 'full'
+    },
+    {
+        entity: 'citizen',
+        field: 'lastName',
+        public: 'full',
+        officer: 'full',
+        manager: 'full',
+        admin: 'full',
+        breakGlass: 'full'
+    },
+    {
+        entity: 'citizen',
+        field: 'nationalId',
+        public: 'none',
+        officer: 'masked',
+        manager: 'full',
+        admin: 'full',
+        breakGlass: 'full'
+    },
+    {
+        entity: 'citizen',
+        field: 'dob',
+        public: 'none',
+        officer: 'none',
+        manager: 'full',
+        admin: 'full',
+        breakGlass: 'full'
+    },
+    {
+        entity: 'citizen',
+        field: 'phone',
+        public: 'none',
+        officer: 'full',
+        manager: 'full',
+        admin: 'full',
+        breakGlass: 'full'
+    },
+    {
+        entity: 'citizen',
+        field: 'email',
+        public: 'none',
+        officer: 'full',
+        manager: 'full',
+        admin: 'full',
+        breakGlass: 'full'
+    },
+    {
+        entity: 'citizen',
+        field: 'address',
+        public: 'partial',
+        officer: 'full',
+        manager: 'full',
+        admin: 'full',
+        breakGlass: 'full'
+    },
+    {
+        entity: 'citizen',
+        field: 'bankDetails',
+        public: 'none',
+        officer: 'none',
+        manager: 'none',
+        admin: 'masked',
+        breakGlass: 'full'
+    },
+];
 
 function AccessLevelSelector({ value, onChange }: { value: AccessLevel; onChange: (val: AccessLevel) => void }) {
     return (

@@ -80,7 +80,7 @@ export function TenantConfigTab() {
     const { toast } = useToast();
     const [isSaving, setIsSaving] = useState(false);
     const [logoFile, setLogoFile] = useState<File | null>(null);
-    const [previewLogo, setPreviewLogo] = useState<string | null>(null);
+    const [previewLogo, setPreviewLogo] = useState<string | null>(config?.logoUrl || '/logo.png');
 
     // Local state for form
     const [formData, setFormData] = useState(config || {
@@ -122,8 +122,12 @@ export function TenantConfigTab() {
                 enabledModules: initialModules
             });
             setLocationLevels(config.locationLevels || []);
+            // Only update preview if we don't have a new file being uploaded
+            if (config.logoUrl && !logoFile) {
+                setPreviewLogo(config.logoUrl);
+            }
         }
-    }, [config]);
+    }, [config, logoFile]);
 
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -400,6 +404,32 @@ export function TenantConfigTab() {
         setFormData({ ...formData, enabledModules: updated });
     };
 
+    const resetToNCDC = () => {
+        const ncdcDefaults = {
+            councilId: '3c4d4a9f-92a7-4dd2-82fb-ceff90c57094',
+            councilName: 'National Capital District Commission',
+            shortName: 'NCDC',
+            primaryColor: '#0F0F0F',
+            secondaryColor: '#F4C400',
+            accentColor: '#F4C400',
+            backgroundRootColor: '#EBECED',
+            backgroundDefaultColor: '#FCFCFC',
+            backgroundHigherColor: '#F0F1F2',
+            foregroundDefaultColor: '#07080A',
+            foregroundDimmerColor: '#3D4047',
+            outlineColor: '#C0C3C4',
+            sidebarBackground: '#0F0F0F',
+            sidebarForeground: '#FFFFFF',
+            headerBackground: '#F4C400',
+            headerForeground: '#000000',
+            fontFamily: 'Inter',
+            logoUrl: '/logo.png'
+        };
+        setFormData(ncdcDefaults);
+        setPreviewLogo('/logo.png');
+        toast({ title: "NCDC Profile Loaded", description: "Click Save to apply these official settings." });
+    };
+
     const handleSave = async () => {
         setIsSaving(true);
         try {
@@ -489,9 +519,20 @@ export function TenantConfigTab() {
                 <TabsContent value="branding" className="space-y-6">
                     <Card className="shadow-lg">
                         <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Building2 className="h-5 w-5 text-blue-600" />
-                                Council Identity
+                            <CardTitle className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Building2 className="h-5 w-5 text-blue-600" />
+                                    Council Identity
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100"
+                                    onClick={resetToNCDC}
+                                >
+                                    <Sparkles className="h-4 w-4 mr-2" />
+                                    Restore NCDC Defaults
+                                </Button>
                             </CardTitle>
                             <CardDescription>Configure council name, logo, and branding assets</CardDescription>
                         </CardHeader>
@@ -545,8 +586,8 @@ export function TenantConfigTab() {
                                                 title="Upload Council Logo"
                                             />
                                             <div className="cursor-pointer">
-                                                {previewLogo ? (
-                                                    <img src={previewLogo} alt="Logo preview" className="h-24 mx-auto" />
+                                                {previewLogo || formData.logoUrl || '/logo.png' ? (
+                                                    <img src={previewLogo || formData.logoUrl || '/logo.png'} alt="Logo preview" className="h-24 mx-auto" />
                                                 ) : (
                                                     <>
                                                         <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />

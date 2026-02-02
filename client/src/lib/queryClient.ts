@@ -1,4 +1,9 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { Capacitor } from '@capacitor/core';
+
+// NOTE: Replace with your computer's local IP address
+const DEV_API_URL = "http://192.168.8.104:5000";
+const getBaseUrl = () => Capacitor.isNativePlatform() ? DEV_API_URL : "";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -22,6 +27,7 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   const councilId = getCouncilId();
+  const fullUrl = url.startsWith('/') ? `${getBaseUrl()}${url}` : url;
 
   const headers: Record<string, string> = {
     'x-council-id': councilId,
@@ -31,7 +37,7 @@ export async function apiRequest(
     headers['Content-Type'] = 'application/json';
   }
 
-  const res = await fetch(url, {
+  const res = await fetch(fullUrl, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
@@ -49,7 +55,9 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
     async ({ queryKey }) => {
       const councilId = getCouncilId();
-      const res = await fetch(queryKey.join("/") as string, {
+      const path = queryKey.join("/") as string;
+      const fullUrl = path.startsWith('/') ? `${getBaseUrl()}${path}` : path;
+      const res = await fetch(fullUrl, {
         credentials: "include",
         headers: {
           'x-council-id': councilId,

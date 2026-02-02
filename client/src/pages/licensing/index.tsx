@@ -4,15 +4,31 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Clock, ArrowRight, Loader2, FileText, ShoppingBag, Wrench, Zap, Factory, Utensils, Pill, Wine, Hotel, Users, Store, Truck, Anchor, Briefcase, Music, Tv, Scissors } from "lucide-react";
+import { Search, Plus, Clock, ArrowRight, Loader2, FileText, ShoppingBag, Wrench, Zap, Factory, Utensils, Pill, Wine, Hotel, Users, Store, Truck, Anchor, Briefcase, Music, Tv, Scissors, Shield } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
 import { LicenseDetailsDialog } from "./license-details-dialog";
-import { LicenseType } from "@shared/schema";
+import { LicenseType, User } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useTenant } from "@/providers/TenantProvider";
+import { useEffect } from "react";
 
 
 // Map text icons to Lucide components
@@ -40,10 +56,15 @@ export default function LicensingPage() {
   const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("all");
 
   // Dialog state
   const [selectedLicense, setSelectedLicense] = useState<LicenseType | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+
+  // Management Tab State
+  const [mgmtSearchTerm, setMgmtSearchTerm] = useState("");
+  const [mgmtStatusFilter, setMgmtStatusFilter] = useState("all");
 
   const { data: licenseTypes, isLoading } = useLicenseTypes();
   const tenant = useTenant();
@@ -58,6 +79,28 @@ export default function LicensingPage() {
       return res.json();
     }
   });
+
+  const { data: user } = useQuery<User>({ queryKey: ["/api/user"] });
+  const isOfficer = !!(
+    user?.role === 'admin' ||
+    user?.role === 'officer' ||
+    user?.role === 'inspector' ||
+    user?.role === 'manager' ||
+    (user?.email && user.email.endsWith('@ncdc.gov.pg')) ||
+    user?.email === 'admin@ncdc.gov.pg'
+  );
+
+  console.log('DEBUG: User Data:', user);
+  console.log('DEBUG: isOfficer:', isOfficer);
+  console.log('DEBUG: User Role:', user?.role);
+  console.log('DEBUG: User Email:', user?.email);
+
+  // Set default tab to registry for officers when data loads
+  useEffect(() => {
+    if (isOfficer) {
+      setActiveTab("management");
+    }
+  }, [isOfficer]);
 
 
   // Fetch services for name mapping
@@ -221,6 +264,131 @@ export default function LicensingPage() {
     );
   };
 
+  const renderRequestTable = (requestList: any[]) => {
+    if (loadingRequests) {
+      return (
+        <div className="flex flex-col gap-2">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="h-12 w-full bg-muted/10 animate-pulse rounded-md" />
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="rounded-xl border bg-white overflow-hidden shadow-sm">
+        <Table>
+          <TableHeader className="bg-[#0F0F0F]">
+            <TableRow className="hover:bg-transparent border-none">
+              <TableHead className="text-white font-black uppercase text-[10px] tracking-widest h-12">Reference</TableHead>
+              <TableHead className="text-white font-black uppercase text-[10px] tracking-widest h-12">Date</TableHead>
+              <TableHead className="text-white font-black uppercase text-[10px] tracking-widest h-12">Permit Type</TableHead>
+              <TableHead className="text-white font-black uppercase text-[10px] tracking-widest h-12">Applicant / Company</TableHead>
+              <TableHead className="text-white font-black uppercase text-[10px] tracking-widest h-12">Status</TableHead>
+              <TableHead className="text-white font-black uppercase text-[10px] tracking-widest h-12 text-right">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {requestList.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-20 text-muted-foreground font-medium">
+                  No applications found in the registry.
+                </TableCell>
+              </TableRow>
+            ) : (
+              requestList.map((request: any) => {
+                const service = services?.find((s: any) => s.serviceId === request.serviceId);
+                const applicantName = request.processingData?.tradingName || request.processingData?.businessName || request.formData?.tradingName || request.formData?.businessName || request.formData?.applicantName || "N/A";
+
+                return (
+                  <TableRow
+                    key={request.requestId}
+                    className="cursor-pointer hover:bg-[#F4C400]/5 transition-colors group"
+                    onClick={() => setLocation(`/licensing/requests/${request.requestId}`)}
+                  >
+                    <TableCell className="font-mono font-black text-sm text-[#0F0F0F]">
+                      {request.requestRef || request.requestId.substring(0, 8).toUpperCase()}
+                    </TableCell>
+                    <TableCell className="text-xs text-gray-500 font-bold">
+                      {request.submittedAt ? new Date(request.submittedAt).toLocaleDateString() : 'Draft'}
+                    </TableCell>
+                    <TableCell className="font-black text-[#0F0F0F] text-xs uppercase tracking-tight">
+                      {licenseTypes?.find(lt => lt.id === (request.formData as any)?.licenseTypeId)?.licenseName || service?.name || "Service Request"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-[#0F0F0F] text-sm">{applicantName}</span>
+                        <span className="text-[10px] text-gray-400 font-mono">ID: {request.requesterId?.substring(0, 8)}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={`rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-widest border-none
+                        ${request.status === 'approved' ? 'bg-[#0D7A2C] text-white' :
+                          request.status === 'rejected' ? 'bg-[#D93025] text-white' :
+                            'bg-[#F4C400] text-[#0F0F0F]'}`}
+                      >
+                        {request.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-[#F4C400] hover:text-black">
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
+
+  const renderManagementTab = () => {
+    const filteredMgmtRequests = requests?.filter((r: any) => {
+      const applicantName = (r.processingData?.tradingName || r.processingData?.businessName || r.formData?.tradingName || r.formData?.businessName || r.formData?.applicantName || "").toLowerCase();
+      const matchesSearch = r.requestId.toLowerCase().includes(mgmtSearchTerm.toLowerCase()) ||
+        (r.requestRef && r.requestRef.toLowerCase().includes(mgmtSearchTerm.toLowerCase())) ||
+        applicantName.includes(mgmtSearchTerm.toLowerCase());
+      const matchesStatus = mgmtStatusFilter === "all" ? true : r.status === mgmtStatusFilter;
+
+      return matchesSearch && matchesStatus;
+    }) || [];
+
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row justify-between gap-4 bg-white p-4 rounded-xl border shadow-sm">
+          <div className="relative w-full md:w-96">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by reference or applicant..."
+              className="pl-10 h-10"
+              value={mgmtSearchTerm}
+              onChange={(e) => setMgmtSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2">
+            <Select value={mgmtStatusFilter} onValueChange={setMgmtStatusFilter}>
+              <SelectTrigger className="w-[180px] h-10">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="submitted">Submitted</SelectItem>
+                <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="inspection">Inspection</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        {renderRequestTable(filteredMgmtRequests)}
+      </div>
+    );
+  };
+
   return (
     <MainLayout>
       <div className="gov-page-header">
@@ -229,7 +397,7 @@ export default function LicensingPage() {
           <p className="flex items-center mt-2 text-sm opacity-90">Official Registry for Permits, Trade, and Compliance within the city limits.</p>
         </div>
         <div className="flex gap-3 items-center">
-          <Button variant="outline" className="font-medium h-10 rounded-lg backdrop-blur-sm bg-white/50 border-outline-dimmer" onClick={() => document.getElementById('search-licenses')?.focus()}>
+          <Button variant="outline" className="font-medium h-10 rounded-lg backdrop-blur-sm bg-white/50 border-outline-dimmer" onClick={() => setActiveTab(isOfficer ? "management" : "all")}>
             <Clock className="mr-2 h-4 w-4 text-primary" />
             My Applications ({myApplicationsCount})
           </Button>
@@ -240,37 +408,43 @@ export default function LicensingPage() {
             <Plus className="mr-2 h-4 w-4" />
             New Application
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => setLocation('/licensing/manage')}>
-            <Wrench className="h-4 w-4 text-muted-foreground" />
-          </Button>
         </div>
       </div>
 
       {/* Applications Tabs */}
       <div className="mb-10">
-        <Tabs defaultValue="processing" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="flex items-center justify-between mb-4 px-2">
             <h3 className="text-lg font-black uppercase tracking-wider flex items-center gap-2">
               <div className="w-2 h-6 bg-secondary"></div>
               My Applications
             </h3>
             <TabsList className="bg-transparent p-0 h-auto gap-2 flex-wrap justify-end">
-              {['all', 'submitted', 'processing', 'approved', 'rejected'].map(tab => (
+              {['all', 'management', 'registry', 'submitted', 'processing', 'approved', 'rejected'].map(tab => (
                 <TabsTrigger
                   key={tab}
                   value={tab}
                   className="bg-transparent border-2 border-[#0F0F0F] text-[#0F0F0F] text-[10px] uppercase font-black px-6 h-10 rounded-lg data-[state=active]:bg-[#0F0F0F] data-[state=active]:text-[#F4C400] data-[state=active]:border-[#0F0F0F] transition-all tracking-widest hover:translate-y-[-1px] hover:shadow-md hover:bg-black/5"
-                  style={{ color: 'inherit' }} // Allow data-[state=active] to override
                 >
-                  {tab}
+                  {tab === 'management' ? 'Management' : tab === 'registry' ? 'All Applications' : tab === 'all' ? 'Overview' : tab}
                 </TabsTrigger>
               ))}
             </TabsList>
           </div>
 
 
+
+
           <TabsContent value="all" className="mt-0">
             {renderRequestGrid(requests || [], "No applications found.")}
+          </TabsContent>
+
+          <TabsContent value="management" className="mt-0">
+            {renderManagementTab()}
+          </TabsContent>
+
+          <TabsContent value="registry" className="mt-0">
+            {renderRequestTable(requests || [])}
           </TabsContent>
 
           <TabsContent value="submitted" className="mt-0">
@@ -289,29 +463,35 @@ export default function LicensingPage() {
             {renderRequestGrid(requests?.filter((r: any) => r.status === 'rejected') || [], "No rejected applications.")}
           </TabsContent>
         </Tabs>
-      </div>
+      </div >
 
-      <div className="bg-white rounded-2xl border-none shadow-sm min-h-[400px]">
-        <div className="p-4 border-b bg-background-higher rounded-t-2xl flex flex-col md:flex-row gap-4">
-          <div className="relative flex-1 group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+      <div className="bg-white rounded-2xl border-none shadow-md min-h-[500px] mb-8 ring-1 ring-black/5 overflow-hidden">
+        <div className="p-6 border-b bg-white flex flex-col md:flex-row gap-6 items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 bg-[#F4C400] rounded-xl flex items-center justify-center shadow-sm">
+              <Search className="h-5 w-5 text-black" />
+            </div>
+            <h3 className="text-[#0F0F0F] font-black uppercase tracking-widest text-sm">Permit Catalog</h3>
+          </div>
+          <div className="relative group w-full md:max-w-xs transition-all">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 group-focus-within:text-[#F4C400] transition-colors" />
             <Input
               id="search-licenses"
-              placeholder="Search catalog by name or permit type..."
-              className="pl-10 h-10 border-outline-dimmer focus-visible:ring-primary rounded-xl bg-background-default"
+              placeholder="Search permits..."
+              className="pl-10 h-10 border-gray-200 focus-visible:ring-2 focus-visible:ring-[#F4C400] rounded-xl bg-gray-50 text-black placeholder:text-gray-400 font-bold text-xs"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide max-w-full items-center">
             <Button
               variant={categoryFilter === null ? "default" : "outline"}
               onClick={() => setCategoryFilter(null)}
-              className={`whitespace-nowrap rounded-lg h-10 px-6 font-black uppercase text-[10px] tracking-widest transition-all border-2`}
+              className={`whitespace-nowrap rounded-lg h-9 px-4 font-black uppercase text-[9px] tracking-widest transition-all border-2`}
               style={{
-                backgroundColor: categoryFilter === null ? '#0F0F0F' : 'transparent',
-                color: categoryFilter === null ? '#F4C400' : '#0F0F0F',
-                borderColor: '#0F0F0F'
+                backgroundColor: categoryFilter === null ? '#F4C400' : 'transparent',
+                color: '#0F0F0F',
+                borderColor: categoryFilter === null ? '#F4C400' : '#E5E7EB'
               }}
             >
               All Permits
@@ -321,11 +501,11 @@ export default function LicensingPage() {
                 key={cat}
                 variant={categoryFilter === cat ? "default" : "outline"}
                 onClick={() => setCategoryFilter(cat)}
-                className={`whitespace-nowrap rounded-lg h-10 px-6 font-black uppercase text-[10px] tracking-widest transition-all border-2`}
+                className={`whitespace-nowrap rounded-lg h-9 px-4 font-black uppercase text-[9px] tracking-widest transition-all border-2`}
                 style={{
-                  backgroundColor: categoryFilter === cat ? '#0F0F0F' : 'transparent',
-                  color: categoryFilter === cat ? '#F4C400' : '#0F0F0F',
-                  borderColor: '#0F0F0F'
+                  backgroundColor: categoryFilter === cat ? '#F4C400' : 'transparent',
+                  color: '#0F0F0F',
+                  borderColor: categoryFilter === cat ? '#F4C400' : '#E5E7EB'
                 }}
               >
                 {cat}
@@ -389,6 +569,6 @@ export default function LicensingPage() {
         open={detailsOpen}
         onOpenChange={setDetailsOpen}
       />
-    </MainLayout>
+    </MainLayout >
   );
 }

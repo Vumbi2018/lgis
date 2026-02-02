@@ -11,6 +11,9 @@ import {
   ChevronDown, Box, ShoppingCart
 } from "lucide-react";
 
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+
 const NAVIGATION_CATEGORIES = [
   {
     id: "core",
@@ -20,7 +23,7 @@ const NAVIGATION_CATEGORIES = [
       { id: "registry", title: "Registry", url: "/registry", icon: Users },
       { id: "licensing", title: "Licensing", url: "/licensing", icon: Shield },
       { id: "services", title: "Services", url: "/services", icon: FileText },
-      { id: "payments", title: "Revenue & Payments", url: "/revenue", icon: CreditCard },
+      { id: "payments", title: "Finance", url: "/revenue", icon: CreditCard },
     ]
   },
   {
@@ -90,6 +93,8 @@ export function Sidebar() {
   const { config } = useTenant();
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
 
+  const { data: user, isLoading: isUserLoading } = useQuery<any>({ queryKey: ["/api/user"] });
+
   // Fallback to all modules if config is loading or empty to ensure visibility
   const enabledModules = config?.enabledModules?.length > 0 ? config.enabledModules : [
     "dashboard", "registry", "licensing", "services", "payments",
@@ -98,6 +103,16 @@ export function Sidebar() {
     "assets", "waste", "procurement", "fleet",
     "portal", "mobile", "notifications", "feedback",
     "reports", "api", "documents", "workflows", "configuration"
+  ];
+
+  // Define allowed modules for 'user' role (Citizen/Business)
+  const citizenAllowedModules = [
+    "portal",      // Public Portal
+    "licensing",   // My Applications
+    "services",    // Services Catalog
+    "notifications",
+    "feedback",
+    "mobile"
   ];
 
   const toggleCategory = (categoryId: string) => {
@@ -117,8 +132,8 @@ export function Sidebar() {
         <div
           className="h-10 w-10 overflow-hidden rounded-full p-0.5 border-2 border-accent-primary-dimmer bg-background-default"
         >
-          {config?.logoUrl ? (
-            <img src={config.logoUrl} alt={config.shortName || 'Logo'} className="h-full w-full object-contain" />
+          {config?.logoUrl || '/logo.png' ? (
+            <img src={config.logoUrl || '/logo.png'} alt={config.shortName || 'NCDC'} className="h-full w-full object-contain" />
           ) : (
             <div
               className="h-full w-full flex items-center justify-center font-bold text-accent-primary-default bg-accent-primary-dimmest"
@@ -148,7 +163,15 @@ export function Sidebar() {
               item.id === "services" ||
               item.id === "payments" ||
               enabledModules.includes(item.id)
-            );
+            ).filter(item => {
+              // Role-based filtering (Fail Safe: Default to citizen view if loading or user restriction applies)
+              const isRestricted = isUserLoading || !user || user.role === "user";
+
+              if (isRestricted) {
+                return citizenAllowedModules.includes(item.id);
+              }
+              return true;
+            });
 
             if (visibleItems.length === 0) return null;
 

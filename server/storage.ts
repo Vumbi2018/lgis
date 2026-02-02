@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, desc, asc } from "drizzle-orm";
+import { eq, desc, asc, and, or, lt, gt, sql, isNull, inArray } from "drizzle-orm";
 import {
   councils, councilUnits, users, roles, permissions, rolePermissions, userRoles,
   auditLogs, citizens, businesses, accounts, services, feeSchedules,
@@ -97,6 +97,16 @@ export interface IStorage {
   getInvoiceById(invoiceId: string): Promise<Invoice | undefined>;
   createInvoice(invoice: any): Promise<Invoice>;
 
+  // Dashboard
+  getDashboardStats(councilId: string): Promise<{
+    totalRevenue: number;
+    activeLicenses: number;
+    pendingInspections: number;
+    citizenRequests: number;
+    chartData: { name: string; total: number }[];
+    districtData: { name: string; value: number }[];
+  }>;
+
   // Payments
   getPayments(councilId?: string): Promise<Payment[]>;
   getPaymentById(paymentId: string): Promise<Payment | undefined>;
@@ -142,6 +152,8 @@ export interface IStorage {
   updateAsset(assetId: string, updates: Partial<Asset>): Promise<Asset | undefined>;
 
   createLicenseType(data: InsertLicenseType): Promise<LicenseType>;
+  getLicenseTypes(): Promise<LicenseType[]>;
+  getLicenseTypeById(id: string): Promise<LicenseType | undefined>;
 
   // License Type Fees
   getLicenseTypeFees(): Promise<LicenseTypeFee[]>;
@@ -158,7 +170,6 @@ export interface IStorage {
 
   // Documents
   getDocumentsByOwner(ownerId: string): Promise<Document[]>;
-
   createDocument(data: InsertDocument): Promise<Document>;
   updateDocumentStatus(documentId: string, status: string, rejectionReason?: string, verifiedBy?: string): Promise<Document | undefined>;
   deleteDocument(documentId: string): Promise<boolean>;
@@ -198,6 +209,12 @@ export interface IStorage {
   getNotifications(userId: string): Promise<Notification[]>;
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationRead(notificationId: string): Promise<Notification | undefined>;
+
+  // Locations
+  getLocationLevels(councilId: string): Promise<LocationLevel[]>;
+  createLocationLevel(level: any): Promise<LocationLevel>;
+  getLocations(councilId: string, levelId?: string, parentId?: string): Promise<Location[]>;
+  createLocation(location: any): Promise<Location>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -208,22 +225,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateTenantConfig(councilId: string, updates: any): Promise<any> {
-    // Remove metadata fields if they exist in updates
     const { configId, createdAt, updatedAt, ...cleanUpdates } = updates;
-
-    // Check if config exists
     const existing = await this.getTenantConfig(councilId);
-
     if (existing) {
-      const [updated] = await db
-        .update(tenantConfig)
+      const [updated] = await db.update(tenantConfig)
         .set({ ...cleanUpdates, updatedAt: new Date() })
         .where(eq(tenantConfig.councilId, councilId))
         .returning();
       return updated;
     } else {
-      const [created] = await db
-        .insert(tenantConfig)
+      const [created] = await db.insert(tenantConfig)
         .values({ ...cleanUpdates, councilId })
         .returning();
       return created;
@@ -246,19 +257,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCouncil(councilId: string, updates: Partial<InsertCouncil>): Promise<Council | undefined> {
-    const [updated] = await db
-      .update(councils)
-      .set(updates)
-      .where(eq(councils.councilId, councilId))
-      .returning();
+    const [updated] = await db.update(councils).set(updates).where(eq(councils.councilId, councilId)).returning();
     return updated;
   }
 
   // Citizens
   async getCitizens(councilId?: string): Promise<Citizen[]> {
-    if (councilId) {
-      return await db.select().from(citizens).where(eq(citizens.councilId, councilId));
-    }
+    if (councilId) return await db.select().from(citizens).where(eq(citizens.councilId, councilId));
     return await db.select().from(citizens);
   }
 
@@ -273,18 +278,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCitizen(citizenId: string, updates: Partial<InsertCitizen>): Promise<Citizen | undefined> {
-    const [updated] = await db.update(citizens)
-      .set(updates)
-      .where(eq(citizens.citizenId, citizenId))
-      .returning();
+    const [updated] = await db.update(citizens).set(updates).where(eq(citizens.citizenId, citizenId)).returning();
     return updated;
   }
 
   // Businesses
   async getBusinesses(councilId?: string): Promise<Business[]> {
-    if (councilId) {
-      return await db.select().from(businesses).where(eq(businesses.councilId, councilId));
-    }
+    console.log(`[Storage] getBusinesses called for councilId: ${councilId || 'ALL'}`);
+    if (councilId) return await db.select().from(businesses).where(eq(businesses.councilId, councilId));
     return await db.select().from(businesses);
   }
 
@@ -299,18 +300,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateBusiness(businessId: string, updates: Partial<InsertBusiness>): Promise<Business | undefined> {
-    const [updated] = await db.update(businesses)
-      .set(updates)
-      .where(eq(businesses.businessId, businessId))
-      .returning();
+    const [updated] = await db.update(businesses).set(updates).where(eq(businesses.businessId, businessId)).returning();
     return updated;
   }
 
   // Properties
   async getProperties(councilId?: string): Promise<Property[]> {
-    if (councilId) {
-      return await db.select().from(properties).where(eq(properties.councilId, councilId));
-    }
+    if (councilId) return await db.select().from(properties).where(eq(properties.councilId, councilId));
     return await db.select().from(properties);
   }
 
@@ -326,9 +322,7 @@ export class DatabaseStorage implements IStorage {
 
   // Services
   async getServices(councilId?: string): Promise<Service[]> {
-    if (councilId) {
-      return await db.select().from(services).where(eq(services.councilId, councilId));
-    }
+    if (councilId) return await db.select().from(services).where(eq(services.councilId, councilId));
     return await db.select().from(services);
   }
 
@@ -343,27 +337,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateService(serviceId: string, updates: Partial<InsertService>): Promise<Service | undefined> {
-    const [updated] = await db.update(services)
-      .set(updates)
-      .where(eq(services.serviceId, serviceId))
-      .returning();
+    const [updated] = await db.update(services).set(updates).where(eq(services.serviceId, serviceId)).returning();
     return updated;
   }
 
   async deleteService(serviceId: string): Promise<boolean> {
-    // Soft delete by setting active to false
-    const [updated] = await db.update(services)
-      .set({ active: false })
-      .where(eq(services.serviceId, serviceId))
-      .returning();
+    const [updated] = await db.update(services).set({ active: false }).where(eq(services.serviceId, serviceId)).returning();
     return !!updated;
   }
 
   // Service Requests
   async getServiceRequests(councilId?: string): Promise<ServiceRequest[]> {
-    if (councilId) {
-      return await db.select().from(serviceRequests).where(eq(serviceRequests.councilId, councilId));
-    }
+    if (councilId) return await db.select().from(serviceRequests).where(eq(serviceRequests.councilId, councilId));
     return await db.select().from(serviceRequests);
   }
 
@@ -383,22 +368,240 @@ export class DatabaseStorage implements IStorage {
 
   async updateServiceRequestStatus(requestId: string, status: string, preprocessingData?: any, timestampUpdates?: any): Promise<ServiceRequest | undefined> {
     const updateHeader: any = { status, ...timestampUpdates };
-    if (preprocessingData) {
-      updateHeader.processingData = preprocessingData; // Map pre to processingData column
-    }
-
-    const [updated] = await db.update(serviceRequests)
-      .set(updateHeader)
-      .where(eq(serviceRequests.requestId, requestId))
-      .returning();
+    if (preprocessingData) updateHeader.processingData = preprocessingData;
+    const [updated] = await db.update(serviceRequests).set(updateHeader).where(eq(serviceRequests.requestId, requestId)).returning();
     return updated;
   }
 
   // Inspections
+  async getDashboardStats(councilId: string) {
+    // 1. Total Revenue (Sum of completed payments)
+    const revenueResult = await db
+      .select({
+        total: sql<string>`sum(${payments.amount})`,
+      })
+      .from(payments)
+      .where(
+        and(
+          eq(payments.councilId, councilId),
+          inArray(payments.status, ['completed', 'paid'])
+        )
+      );
+
+    const totalRevenue = parseFloat(revenueResult[0]?.total || "0");
+
+    // 2. Active Licenses
+    const activeLicensesResult = await db
+      .select({
+        count: sql<number>`count(*)`,
+      })
+      .from(licences)
+      .where(
+        and(
+          eq(licences.councilId, councilId),
+          inArray(licences.status, ['active', 'issued', 'approved'])
+        )
+      );
+
+    const activeLicenses = Number(activeLicensesResult[0]?.count || 0);
+
+    // 3. Pending Inspections
+    const pendingInspectionsResult = await db
+      .select({
+        count: sql<number>`count(*)`,
+      })
+      .from(inspections)
+      .where(
+        and(
+          eq(inspections.councilId, councilId),
+          isNull(inspections.performedAt)
+        )
+      );
+
+    const pendingInspections = Number(pendingInspectionsResult[0]?.count || 0);
+
+    // 4. Citizen Requests (Total)
+    const requestsResult = await db
+      .select({
+        count: sql<number>`count(*)`,
+      })
+      .from(serviceRequests)
+      .where(eq(serviceRequests.councilId, councilId));
+
+    const citizenRequests = Number(requestsResult[0]?.count || 0);
+
+    // 5. Monthly Revenue (Last 6 months)
+    // Note: Drizzle specific date functions can vary by DB driver. 
+    // Assuming Postgres 'to_char' or just fetching all and grouping in JS for simplicity/compat
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+    const recentPayments = await db
+      .select({
+        amount: payments.amount,
+        paidAt: payments.paidAt,
+      })
+      .from(payments)
+      .where(
+        and(
+          eq(payments.councilId, councilId),
+          inArray(payments.status, ['completed', 'paid']),
+          gt(payments.paidAt, sixMonthsAgo)
+        )
+      );
+
+    // Group by Month in JS
+    const monthlyDataMap = new Map<string, number>();
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    recentPayments.forEach(p => {
+      if (p.paidAt) {
+        const d = new Date(p.paidAt);
+        const monthKey = monthNames[d.getMonth()];
+        const current = monthlyDataMap.get(monthKey) || 0;
+        monthlyDataMap.set(monthKey, current + Number(p.amount));
+      }
+    });
+
+    const chartData = Array.from(monthlyDataMap.entries()).map(([name, total]) => ({ name, total }));
+
+    // 6. District Data (Businesses by District)
+    const districtResult = await db
+      .select({
+        name: businesses.district,
+        value: sql<number>`count(*)`
+      })
+      .from(businesses)
+      .where(eq(businesses.councilId, councilId))
+      .groupBy(businesses.district);
+
+    /* 
+    Fix: Filter only valid NCDC Electorates 
+    Valid districts: Moresby North-East, Moresby North-West, Moresby South.
+    */
+    const validDistricts = ["Moresby North-East", "Moresby North-West", "Moresby South"];
+
+    const districtData = districtResult
+      .filter(d => d.name && validDistricts.includes(d.name))
+      .map(d => ({
+        name: d.name!,
+        value: Number(d.value)
+      }));
+
+    // 7. Recent Activity (from Audit Logs for now, or mix of entities)
+    // We'll fetch the last 5 relevant actions
+    const recentActivityResult = await db
+      .select()
+      .from(auditLogs)
+      .where(eq(auditLogs.councilId, councilId))
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(5);
+
+    const recentActivity = recentActivityResult.map(log => {
+      let description = `Action: ${log.action} on ${log.entityType}`;
+      let type = 'System Update';
+      let amount = (log.details as any)?.amount || (log.details as any)?.total || 0;
+
+      // Better mapping for Activity Feed
+      if (log.entityType === 'licence') {
+        type = 'License Issued';
+        description = `New license #${log.entityId?.slice(0, 8)}... issued.`;
+      } else if (log.entityType === 'payment') {
+        type = 'Payment Received';
+        description = `Payment of PGK ${amount} received.`;
+      } else if (log.entityType === 'service_request') {
+        type = 'Application Update';
+        if (log.action === 'status_change') {
+          const newState = (log.details as any)?.afterState || 'updated';
+          description = `Application status updated to ${newState}.`;
+        } else {
+          description = `Application updated.`;
+        }
+      } else if (log.entityType === 'inspection') {
+        type = 'Inspection Update';
+        description = `Inspection record updated.`;
+      } else if (log.entityType === 'document') {
+        type = 'Document Review';
+        if (log.action === 'review_document') {
+          description = `Document reviewed by officer.`;
+        }
+      }
+
+      return {
+        id: log.auditId,
+        type: type,
+        entity: log.entityId,
+        description: description,
+        amount: amount,
+        time: log.createdAt ? new Date(log.createdAt).toISOString() : new Date().toISOString()
+      };
+    });
+
+    // 8. Critical Alerts
+    // 8a. Expired Licenses
+    const expiredLicenses = await db
+      .select({
+        name: businesses.legalName,
+        expiry: licences.expiryDate
+      })
+      .from(licences)
+      .innerJoin(serviceRequests, eq(licences.requestId, serviceRequests.requestId)) // Join to get requester (business)
+      .innerJoin(businesses, eq(serviceRequests.requesterId, businesses.businessId))
+      .where(
+        and(
+          eq(licences.councilId, councilId),
+          lt(licences.expiryDate, new Date())
+        )
+      )
+      .limit(3);
+
+    const alerts = expiredLicenses.map(l => ({
+      id: `exp-${l.name}`,
+      type: 'License Expired',
+      title: `License Expired: ${l.name}`,
+      message: `${Math.floor((Date.now() - new Date(l.expiry!).getTime()) / (1000 * 60 * 60 * 24))} days overdue.`
+    }));
+
+    // 8b. Failed Inspections
+    const failedInspections = await db
+      .select({
+        remarks: inspections.remarks,
+        businessName: businesses.legalName
+      })
+      .from(inspections)
+      .leftJoin(serviceRequests, eq(inspections.requestId, serviceRequests.requestId))
+      .leftJoin(businesses, eq(serviceRequests.requesterId, businesses.businessId))
+      .where(
+        and(
+          eq(inspections.councilId, councilId),
+          eq(inspections.result, 'fail')
+        )
+      )
+      .limit(3);
+
+    failedInspections.forEach((i, idx) => {
+      alerts.push({
+        id: `fail-${idx}`,
+        type: 'Health Violation',
+        title: `Failed Inspection: ${i.businessName || 'Unknown Site'}`,
+        message: i.remarks || "Immediate follow-up required."
+      });
+    });
+
+    return {
+      totalRevenue,
+      activeLicenses,
+      pendingInspections,
+      citizenRequests,
+      chartData,
+      districtData,
+      recentActivity,
+      alerts
+    };
+  }
+
   async getInspections(councilId?: string): Promise<Inspection[]> {
-    if (councilId) {
-      return await db.select().from(inspections).where(eq(inspections.councilId, councilId));
-    }
+    if (councilId) return await db.select().from(inspections).where(eq(inspections.councilId, councilId));
     return await db.select().from(inspections);
   }
 
@@ -413,18 +616,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateInspection(inspectionId: string, updates: Partial<Inspection>): Promise<Inspection | undefined> {
-    const [updated] = await db.update(inspections)
-      .set(updates)
-      .where(eq(inspections.inspectionId, inspectionId))
-      .returning();
+    const [updated] = await db.update(inspections).set(updates).where(eq(inspections.inspectionId, inspectionId)).returning();
     return updated;
   }
 
   // Invoices
   async getInvoices(councilId?: string): Promise<Invoice[]> {
-    if (councilId) {
-      return await db.select().from(invoices).where(eq(invoices.councilId, councilId));
-    }
+    if (councilId) return await db.select().from(invoices).where(eq(invoices.councilId, councilId));
     return await db.select().from(invoices);
   }
 
@@ -438,21 +636,35 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  // Licences
-  async getLicences(councilId?: string): Promise<Licence[]> {
-    if (councilId) {
-      return await db.select().from(licences).where(eq(licences.councilId, councilId));
-    }
-    return await db.select().from(licences);
+  // Payments
+  async getPayments(councilId?: string): Promise<Payment[]> {
+    if (councilId) return await db.select().from(payments).where(eq(payments.councilId, councilId)).orderBy(desc(payments.createdAt));
+    return await db.select().from(payments).orderBy(desc(payments.createdAt));
   }
 
-  async getLicenceById(licenceId: string): Promise<Licence | undefined> {
-    const [licence] = await db.select().from(licences).where(eq(licences.licenceId, licenceId));
-    return licence;
+  async getPaymentById(paymentId: string): Promise<Payment | undefined> {
+    const [payment] = await db.select().from(payments).where(eq(payments.paymentId, paymentId));
+    return payment;
+  }
+
+  async createPayment(payment: InsertPayment): Promise<Payment> {
+    const [created] = await db.insert(payments).values(payment).returning();
+    return created;
+  }
+
+  // Licences
+  async getLicences(councilId?: string): Promise<Licence[]> {
+    if (councilId) return await db.select().from(licences).where(eq(licences.councilId, councilId));
+    return await db.select().from(licences);
   }
 
   async getLicenceByNo(licenceNo: string): Promise<Licence | undefined> {
     const [licence] = await db.select().from(licences).where(eq(licences.licenceNo, licenceNo));
+    return licence;
+  }
+
+  async getLicenceById(licenceId: string): Promise<Licence | undefined> {
+    const [licence] = await db.select().from(licences).where(eq(licences.licenceId, licenceId));
     return licence;
   }
 
@@ -466,42 +678,9 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  // Locations
-  async getLocationLevels(councilId: string): Promise<LocationLevel[]> {
-    return await db.select().from(locationLevels)
-      .where(eq(locationLevels.councilId, councilId))
-      .orderBy(locationLevels.level);
-  }
-
-  async createLocationLevel(level: any): Promise<LocationLevel> {
-    const [created] = await db.insert(locationLevels).values(level).returning();
-    return created;
-  }
-
-  async getLocations(councilId: string, levelId?: string, parentId?: string): Promise<Location[]> {
-    let query: any = db.select().from(locations).where(eq(locations.councilId, councilId));
-
-    if (levelId) {
-      query = query.where(eq(locations.levelId, levelId)) as any;
-    }
-
-    if (parentId) {
-      query = query.where(eq(locations.parentId, parentId)) as any;
-    }
-
-    return await query;
-  }
-
-  async createLocation(location: any): Promise<Location> {
-    const [created] = await db.insert(locations).values(location).returning();
-    return created;
-  }
-
   // Markets
   async getMarkets(councilId?: string): Promise<Market[]> {
-    if (councilId) {
-      return await db.select().from(markets).where(eq(markets.councilId, councilId));
-    }
+    if (councilId) return await db.select().from(markets).where(eq(markets.councilId, councilId));
     return await db.select().from(markets);
   }
 
@@ -512,12 +691,8 @@ export class DatabaseStorage implements IStorage {
 
   // Stalls
   async getStalls(councilId?: string, marketId?: string): Promise<Stall[]> {
-    if (marketId) {
-      return await db.select().from(stalls).where(eq(stalls.marketId, marketId));
-    }
-    if (councilId) {
-      return await db.select().from(stalls).where(eq(stalls.councilId, councilId));
-    }
+    if (marketId) return await db.select().from(stalls).where(eq(stalls.marketId, marketId));
+    if (councilId) return await db.select().from(stalls).where(eq(stalls.councilId, councilId));
     return await db.select().from(stalls);
   }
 
@@ -528,9 +703,7 @@ export class DatabaseStorage implements IStorage {
 
   // Complaints
   async getComplaints(councilId?: string): Promise<Complaint[]> {
-    if (councilId) {
-      return await db.select().from(complaints).where(eq(complaints.councilId, councilId));
-    }
+    if (councilId) return await db.select().from(complaints).where(eq(complaints.councilId, councilId));
     return await db.select().from(complaints);
   }
 
@@ -546,9 +719,7 @@ export class DatabaseStorage implements IStorage {
 
   // Enforcement Cases
   async getEnforcementCases(councilId?: string): Promise<EnforcementCase[]> {
-    if (councilId) {
-      return await db.select().from(enforcementCases).where(eq(enforcementCases.councilId, councilId));
-    }
+    if (councilId) return await db.select().from(enforcementCases).where(eq(enforcementCases.councilId, councilId));
     return await db.select().from(enforcementCases);
   }
 
@@ -559,9 +730,7 @@ export class DatabaseStorage implements IStorage {
 
   // Audit Logs
   async getAuditLogs(councilId?: string): Promise<AuditLog[]> {
-    if (councilId) {
-      return await db.select().from(auditLogs).where(eq(auditLogs.councilId, councilId)).orderBy(desc(auditLogs.createdAt));
-    }
+    if (councilId) return await db.select().from(auditLogs).where(eq(auditLogs.councilId, councilId)).orderBy(desc(auditLogs.createdAt));
     return await db.select().from(auditLogs).orderBy(desc(auditLogs.createdAt));
   }
 
@@ -588,9 +757,7 @@ export class DatabaseStorage implements IStorage {
 
   // Assets
   async getAssets(councilId?: string): Promise<Asset[]> {
-    if (councilId) {
-      return await db.select().from(assets).where(eq(assets.councilId, councilId));
-    }
+    if (councilId) return await db.select().from(assets).where(eq(assets.councilId, councilId));
     return await db.select().from(assets);
   }
 
@@ -605,15 +772,16 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateAsset(assetId: string, updates: Partial<Asset>): Promise<Asset | undefined> {
-    const [updated] = await db
-      .update(assets)
-      .set(updates)
-      .where(eq(assets.assetId, assetId))
-      .returning();
+    const [updated] = await db.update(assets).set(updates).where(eq(assets.assetId, assetId)).returning();
     return updated;
   }
 
   // License Types
+  async createLicenseType(data: InsertLicenseType): Promise<LicenseType> {
+    const [created] = await db.insert(licenseTypes).values(data).returning();
+    return created;
+  }
+
   async getLicenseTypes(): Promise<LicenseType[]> {
     return await db.select().from(licenseTypes);
   }
@@ -623,9 +791,19 @@ export class DatabaseStorage implements IStorage {
     return lt;
   }
 
-  async createLicenseType(data: InsertLicenseType): Promise<LicenseType> {
-    const [created] = await db.insert(licenseTypes).values(data).returning();
-    return created;
+  async updateLicenseType(id: string, updates: Partial<InsertLicenseType>): Promise<LicenseType | undefined> {
+    const [updated] = await db.update(licenseTypes).set(updates).where(eq(licenseTypes.id, id)).returning();
+    return updated;
+  }
+
+  async deleteLicenseType(id: string): Promise<boolean> {
+    // Also delete associated requirements
+    await db.delete(checklistRequirements).where(eq(checklistRequirements.licenseTypeId, id));
+    await db.delete(specialRequirements).where(eq(specialRequirements.licenseTypeId, id));
+    await db.delete(licenseTypeFees).where(eq(licenseTypeFees.licenseTypeId, id));
+
+    const [deleted] = await db.delete(licenseTypes).where(eq(licenseTypes.id, id)).returning();
+    return !!deleted;
   }
 
   // License Type Fees
@@ -639,18 +817,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateLicenseTypeFee(id: string, updates: Partial<InsertLicenseTypeFee>): Promise<LicenseTypeFee | undefined> {
-    const [updated] = await db.update(licenseTypeFees)
-      .set(updates)
-      .where(eq(licenseTypeFees.id, id))
-      .returning();
+    const [updated] = await db.update(licenseTypeFees).set(updates).where(eq(licenseTypeFees.id, id)).returning();
     return updated;
   }
 
   // Checklist Requirements
   async getChecklistRequirements(licenseTypeId?: string): Promise<ChecklistRequirement[]> {
-    if (licenseTypeId) {
-      return await db.select().from(checklistRequirements).where(eq(checklistRequirements.licenseTypeId, licenseTypeId));
-    }
+    if (licenseTypeId) return await db.select().from(checklistRequirements).where(eq(checklistRequirements.licenseTypeId, licenseTypeId));
     return await db.select().from(checklistRequirements);
   }
 
@@ -659,11 +832,19 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
+  async updateChecklistRequirement(id: string, updates: Partial<InsertChecklistRequirement>): Promise<ChecklistRequirement | undefined> {
+    const [updated] = await db.update(checklistRequirements).set(updates).where(eq(checklistRequirements.id, id)).returning();
+    return updated;
+  }
+
+  async deleteChecklistRequirement(id: string): Promise<boolean> {
+    const [deleted] = await db.delete(checklistRequirements).where(eq(checklistRequirements.id, id)).returning();
+    return !!deleted;
+  }
+
   // Special Requirements
   async getSpecialRequirements(licenseTypeId?: string): Promise<SpecialRequirement[]> {
-    if (licenseTypeId) {
-      return await db.select().from(specialRequirements).where(eq(specialRequirements.licenseTypeId, licenseTypeId));
-    }
+    if (licenseTypeId) return await db.select().from(specialRequirements).where(eq(specialRequirements.licenseTypeId, licenseTypeId));
     return await db.select().from(specialRequirements);
   }
 
@@ -672,25 +853,15 @@ export class DatabaseStorage implements IStorage {
     return created;
   }
 
-  // Payments
-  async getPayments(councilId?: string): Promise<Payment[]> {
-    if (councilId) {
-      return await db.select().from(payments).where(eq(payments.councilId, councilId)).orderBy(desc(payments.createdAt));
-    }
-    return await db.select().from(payments).orderBy(desc(payments.createdAt));
+  async updateSpecialRequirement(id: string, updates: Partial<InsertSpecialRequirement>): Promise<SpecialRequirement | undefined> {
+    const [updated] = await db.update(specialRequirements).set(updates).where(eq(specialRequirements.id, id)).returning();
+    return updated;
   }
 
-  async getPaymentById(paymentId: string): Promise<Payment | undefined> {
-    const [payment] = await db.select().from(payments).where(eq(payments.paymentId, paymentId));
-    return payment;
+  async deleteSpecialRequirement(id: string): Promise<boolean> {
+    const [deleted] = await db.delete(specialRequirements).where(eq(specialRequirements.id, id)).returning();
+    return !!deleted;
   }
-
-  async createPayment(payment: InsertPayment): Promise<Payment> {
-    const [created] = await db.insert(payments).values(payment).returning();
-    return created;
-  }
-
-
 
   // Documents
   async getDocumentsByOwner(ownerId: string): Promise<Document[]> {
@@ -700,6 +871,20 @@ export class DatabaseStorage implements IStorage {
   async createDocument(data: InsertDocument): Promise<Document> {
     const [created] = await db.insert(documents).values(data).returning();
     return created;
+  }
+
+  async updateDocumentStatus(documentId: string, status: string, rejectionReason?: string, verifiedBy?: string): Promise<Document | undefined> {
+    const [updated] = await db.update(documents).set({
+      status, rejectionReason, verified: status === 'approved',
+      verifiedBy: status === 'approved' ? verifiedBy : null,
+      verifiedAt: status === 'approved' ? new Date() : null
+    }).where(eq(documents.documentId, documentId)).returning();
+    return updated;
+  }
+
+  async deleteDocument(documentId: string): Promise<boolean> {
+    const [deleted] = await db.delete(documents).where(eq(documents.documentId, documentId)).returning();
+    return !!deleted;
   }
 
   // Business Verifications
@@ -714,10 +899,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateBusinessVerification(id: string, updates: Partial<InsertBusinessVerificationRequest>): Promise<BusinessVerificationRequest | undefined> {
-    const [updated] = await db.update(businessVerificationRequests)
-      .set(updates)
-      .where(eq(businessVerificationRequests.requestId, id))
-      .returning();
+    const [updated] = await db.update(businessVerificationRequests).set(updates).where(eq(businessVerificationRequests.requestId, id)).returning();
     return updated;
   }
 
@@ -729,32 +911,25 @@ export class DatabaseStorage implements IStorage {
       registrationNo: businesses.registrationNo,
       submittedAt: businessVerificationRequests.submittedAt,
       status: businessVerificationRequests.status,
-    })
-      .from(businessVerificationRequests)
+    }).from(businessVerificationRequests)
       .innerJoin(businesses, eq(businessVerificationRequests.businessId, businesses.businessId))
       .where(eq(businessVerificationRequests.status, 'pending'));
-
-    // Enrich with document count (inefficient but simple for now)
     const result = [];
     for (const req of requests) {
       const docs = await db.select().from(documents).where(eq(documents.ownerId, req.businessId));
       result.push({ ...req, documentCount: docs.length });
     }
-
     return result;
   }
 
   // Workflows
   async getWorkflowByService(serviceId: string): Promise<WorkflowDefinition | undefined> {
-    const [workflow] = await db.select().from(workflowDefinitions)
-      .where(eq(workflowDefinitions.serviceId, serviceId));
+    const [workflow] = await db.select().from(workflowDefinitions).where(eq(workflowDefinitions.serviceId, serviceId));
     return workflow;
   }
 
   async getWorkflowSteps(workflowId: string): Promise<WorkflowStep[]> {
-    return await db.select().from(workflowSteps)
-      .where(eq(workflowSteps.workflowId, workflowId))
-      .orderBy(asc(workflowSteps.orderNo));
+    return await db.select().from(workflowSteps).where(eq(workflowSteps.workflowId, workflowId)).orderBy(asc(workflowSteps.orderNo));
   }
 
   async createWorkflowInstance(instance: any): Promise<WorkflowInstance> {
@@ -763,23 +938,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createServiceRequestWithWorkflow(request: any, serviceId: string): Promise<{ request: ServiceRequest, workflow: WorkflowInstance }> {
-    // 1. Create Service Request
     const [createdRequest] = await db.insert(serviceRequests).values(request).returning();
-
-    // 2. Find Workflow Definition
     let workflow = await this.getWorkflowByService(serviceId);
-
-    // Auto-create default workflow if missing (for prototype robustness)
     if (!workflow) {
-      const [newWorkflow] = await db.insert(workflowDefinitions).values({
-        councilId: request.councilId,
-        serviceId: serviceId,
-        version: "1.0",
-        active: true
-      }).returning();
+      const [newWorkflow] = await db.insert(workflowDefinitions).values({ councilId: request.councilId, serviceId, version: "1.0", active: true }).returning();
       workflow = newWorkflow;
-
-      // Add default steps
       await db.insert(workflowSteps).values([
         { councilId: request.councilId, workflowId: workflow.workflowId, name: "Submission Review", orderNo: 1, assigneeRole: "Officer" },
         { councilId: request.councilId, workflowId: workflow.workflowId, name: "Inspection", orderNo: 2, assigneeRole: "Inspector" },
@@ -787,20 +950,11 @@ export class DatabaseStorage implements IStorage {
         { councilId: request.councilId, workflowId: workflow.workflowId, name: "Issuance", orderNo: 4, assigneeRole: "Admin" }
       ]);
     }
-
     const steps = await this.getWorkflowSteps(workflow.workflowId);
-    const firstStep = steps[0];
-
-    // 3. Create Workflow Instance
     const [instance] = await db.insert(workflowInstances).values({
-      councilId: request.councilId,
-      requestId: createdRequest.requestId,
-      workflowId: workflow.workflowId,
-      state: "active",
-      currentStepId: firstStep?.stepId,
-      startedAt: new Date()
+      councilId: request.councilId, requestId: createdRequest.requestId, workflowId: workflow.workflowId,
+      state: "active", currentStepId: steps[0]?.stepId, startedAt: new Date()
     }).returning();
-
     return { request: createdRequest, workflow: instance };
   }
 
@@ -814,8 +968,6 @@ export class DatabaseStorage implements IStorage {
       ];
       const [w1, w2, w3] = await db.insert(workflowDefinitions).values(seeds).returning();
       workflows = [w1, w2, w3];
-
-      // Seed steps for first workflow
       await db.insert(workflowSteps).values([
         { councilId, workflowId: w1.workflowId, name: "Application", orderNo: 1, assigneeRole: "Officer" },
         { councilId, workflowId: w1.workflowId, name: "Document Check", orderNo: 2, assigneeRole: "Officer" },
@@ -826,14 +978,14 @@ export class DatabaseStorage implements IStorage {
     return workflows;
   }
 
-  async createWorkflowDefinition(workflow: InsertWorkflowDefinition): Promise<WorkflowDefinition> {
-    const [created] = await db.insert(workflowDefinitions).values(workflow).returning();
-    return created;
-  }
-
   async getWorkflowDefinition(workflowId: string): Promise<WorkflowDefinition | undefined> {
     const [workflow] = await db.select().from(workflowDefinitions).where(eq(workflowDefinitions.workflowId, workflowId));
     return workflow;
+  }
+
+  async createWorkflowDefinition(workflow: InsertWorkflowDefinition): Promise<WorkflowDefinition> {
+    const [created] = await db.insert(workflowDefinitions).values(workflow).returning();
+    return created;
   }
 
   async updateWorkflowDefinition(workflowId: string, updates: Partial<InsertWorkflowDefinition>): Promise<WorkflowDefinition | undefined> {
@@ -878,9 +1030,7 @@ export class DatabaseStorage implements IStorage {
 
   // Procurement
   async getPurchaseOrders(councilId?: string): Promise<PurchaseOrder[]> {
-    if (councilId) {
-      return await db.select().from(purchaseOrders).where(eq(purchaseOrders.councilId, councilId)).orderBy(desc(purchaseOrders.createdAt));
-    }
+    if (councilId) return await db.select().from(purchaseOrders).where(eq(purchaseOrders.councilId, councilId)).orderBy(desc(purchaseOrders.createdAt));
     return await db.select().from(purchaseOrders).orderBy(desc(purchaseOrders.createdAt));
   }
 
@@ -895,10 +1045,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updatePurchaseOrder(orderId: string, updates: Partial<InsertPurchaseOrder>): Promise<PurchaseOrder | undefined> {
-    const [updated] = await db.update(purchaseOrders)
-      .set(updates)
-      .where(eq(purchaseOrders.orderId, orderId))
-      .returning();
+    const [updated] = await db.update(purchaseOrders).set(updates).where(eq(purchaseOrders.orderId, orderId)).returning();
     return updated;
   }
 
@@ -922,34 +1069,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   async markNotificationRead(notificationId: string): Promise<Notification | undefined> {
-    const [updated] = await db
-      .update(notifications)
-      .set({ read: true })
-      .where(eq(notifications.notificationId, notificationId))
-      .returning();
-    return updated;
-  }
-  async updateDocumentStatus(documentId: string, status: string, rejectionReason?: string, verifiedBy?: string): Promise<Document | undefined> {
-    const [updated] = await db
-      .update(documents)
-      .set({
-        status,
-        rejectionReason,
-        verified: status === 'approved',
-        verifiedBy: status === 'approved' ? verifiedBy : null,
-        verifiedAt: status === 'approved' ? new Date() : null
-      })
-      .where(eq(documents.documentId, documentId))
-      .returning();
+    const [updated] = await db.update(notifications).set({ read: true }).where(eq(notifications.notificationId, notificationId)).returning();
     return updated;
   }
 
-  async deleteDocument(documentId: string): Promise<boolean> {
-    const [deleted] = await db
-      .delete(documents)
-      .where(eq(documents.documentId, documentId))
-      .returning();
-    return !!deleted;
+  // Locations
+  async getLocationLevels(councilId: string): Promise<LocationLevel[]> {
+    return await db.select().from(locationLevels).where(eq(locationLevels.councilId, councilId)).orderBy(locationLevels.level);
+  }
+
+  async createLocationLevel(level: any): Promise<LocationLevel> {
+    const [created] = await db.insert(locationLevels).values(level).returning();
+    return created;
+  }
+
+  async getLocations(councilId: string, levelId?: string, parentId?: string): Promise<Location[]> {
+    let query: any = db.select().from(locations).where(eq(locations.councilId, councilId));
+    if (levelId) query = query.where(eq(locations.levelId, levelId));
+    if (parentId) query = query.where(eq(locations.parentId, parentId));
+    return await query;
+  }
+
+  async createLocation(location: any): Promise<Location> {
+    const [created] = await db.insert(locations).values(location).returning();
+    return created;
   }
 }
 

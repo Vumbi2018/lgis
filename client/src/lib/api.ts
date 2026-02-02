@@ -1,5 +1,10 @@
 // API client utilities
-const API_BASE = "/api";
+import { Capacitor } from '@capacitor/core';
+
+// NOTE: Replace with your computer's local IP address
+const DEV_API_URL = "http://192.168.8.104:5000";
+
+const API_BASE = Capacitor.isNativePlatform() ? `${DEV_API_URL}/api` : "/api";
 
 export async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
   // Get council ID from localStorage if available
@@ -118,4 +123,34 @@ export const api = {
     list: (organizationId?: string) =>
       fetchAPI(`/audit-logs${organizationId ? `?organizationId=${organizationId}` : ""}`),
   },
+
+  // v1 API
+  v1: {
+    licenseTypes: {
+      list: () => fetchAPI("/v1/license-types"),
+      create: (data: any) => fetchAPI("/v1/license-types", { method: "POST", body: JSON.stringify(data) }),
+      update: (id: string, data: any) => fetchAPI(`/v1/license-types/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+      delete: (id: string) => fetchAPI(`/v1/license-types/${id}`, { method: "DELETE" }),
+
+      checklist: {
+        list: (id: string) => fetchAPI(`/v1/license-types/${id}/checklist`),
+        create: (id: string, data: any) => fetchAPI(`/v1/license-types/${id}/checklist`, { method: "POST", body: JSON.stringify(data) }),
+      },
+
+      special: {
+        list: (id: string) => fetchAPI(`/v1/license-types/${id}/special`),
+        create: (id: string, data: any) => fetchAPI(`/v1/license-types/${id}/special`, { method: "POST", body: JSON.stringify(data) }),
+      }
+    },
+
+    checklistRequirements: {
+      update: (id: string, data: any) => fetchAPI(`/v1/checklist-requirements/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+      delete: (id: string) => fetchAPI(`/v1/checklist-requirements/${id}`, { method: "DELETE" }),
+    },
+
+    specialRequirements: {
+      update: (id: string, data: any) => fetchAPI(`/v1/special-requirements/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+      delete: (id: string) => fetchAPI(`/v1/special-requirements/${id}`, { method: "DELETE" }),
+    }
+  }
 };

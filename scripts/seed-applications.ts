@@ -100,7 +100,7 @@ async function seedApplications() {
         }
 
         console.log(`\n✨ Successfully seeded ${sampleApps.length} applications!`);
-        console.log('Go to http://localhost:5173/licensing/manage to view them.');
+        console.log('Go to /licensing to view them.');
 
         process.exit(0);
     } catch (error) {

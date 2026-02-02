@@ -20,7 +20,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function Header() {
-  const user = MOCK_USERS[0];
+  const { data: user } = useQuery<any>({ queryKey: ["/api/user"] });
+  // const user = MOCK_USERS[0]; // Removed hardcoded mock user
   const [location, setLocation] = useLocation();
   const { currentOrganization, setCurrentOrganization, organizations } = useOrganization();
 
@@ -37,11 +38,13 @@ export function Header() {
   };
 
   const { data: notifications } = useQuery({
-    queryKey: ["/api/v1/notifications"],
+    queryKey: ["/api/v1/notifications", user?.userId],
     queryFn: async () => {
-      const res = await apiRequest("GET", `/api/v1/notifications?userId=${user.id}`);
+      if (!user) return [];
+      const res = await apiRequest("GET", `/api/v1/notifications?userId=${user.userId}`);
       return res.json();
-    }
+    },
+    enabled: !!user
   });
 
   const unreadCount = notifications?.filter((n: any) => !n.read).length || 0;
@@ -59,7 +62,7 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-auto p-0 hover:bg-transparent font-normal flex items-center gap-2">
                 <span className="font-bold text-lg tracking-tight text-left text-foreground-default">
-                  {currentOrganization?.name || <div className="h-6 w-32 bg-gray-200 animate-pulse rounded" />}
+                  {currentOrganization?.name || "National Capital District Commission"}
                 </span>
                 <ChevronDown className="h-4 w-4 text-foreground-dimmer" />
               </Button>
@@ -142,20 +145,28 @@ export function Header() {
               variant="ghost"
               className="relative h-9 w-9 rounded-full transition-all bg-foreground-default text-background-default"
             >
-              <span className="font-bold text-xs">{user.avatar}</span>
+              <span className="font-bold text-xs">
+                {user?.fullName ?
+                  user.fullName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
+                  : "U"}
+              </span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56 bg-background-default border-outline-dimmer">
             <DropdownMenuLabel>
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none text-foreground-default">{user.name}</p>
-                <p className="text-xs leading-none text-foreground-dimmer">{user.email}</p>
+                <p className="text-sm font-medium leading-none text-foreground-default">{user?.fullName || "User"}</p>
+                <p className="text-xs leading-none text-foreground-dimmer">{user?.email || "No email"}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-outline-dimmer" />
-            <DropdownMenuItem className="text-foreground-default">Officer Profile</DropdownMenuItem>
-            <DropdownMenuItem className="text-foreground-default">NCDC Settings</DropdownMenuItem>
-            <DropdownMenuSeparator className="bg-outline-dimmer" />
+            {user && ["admin", "manager", "officer"].includes(user.role) && (
+              <>
+                <DropdownMenuItem className="text-foreground-default">Officer Profile</DropdownMenuItem>
+                <DropdownMenuItem className="text-foreground-default">NCDC Settings</DropdownMenuItem>
+                <DropdownMenuSeparator className="bg-outline-dimmer" />
+              </>
+            )}
             <DropdownMenuItem className="focus:bg-red-50 text-accent-negative-default" onClick={handleLogout}>
               Log out
             </DropdownMenuItem>

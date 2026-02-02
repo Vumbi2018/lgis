@@ -99,12 +99,22 @@ export const auditLogs = pgTable("audit_logs", {
 });
 
 // ================================
+// SESSIONS (Persistent Store)
+// ================================
+export const session = pgTable("session", {
+  sid: varchar("sid").primaryKey().notNull(),
+  sess: jsonb("sess").notNull(),
+  expire: timestamp("expire", { precision: 6 }).notNull(),
+});
+
+// ================================
 // CITIZENS, BUSINESSES & ACCOUNTS
 // ================================
 
 export const citizens = pgTable("citizens", {
   citizenId: varchar("citizen_id").primaryKey().default(sql`gen_random_uuid()`),
   councilId: varchar("council_id").notNull(),
+  userId: varchar("user_id"), // Proactively added for Public Portal
   nationalId: text("national_id"),
   localCitizenNo: text("local_citizen_no"),
   firstName: text("first_name").notNull(),
@@ -548,6 +558,7 @@ export const assets = pgTable("assets", {
 
 export const licenseTypes = pgTable("license_types", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  licenseCode: text("license_code"),
   licenseName: text("license_name").notNull(),
   licenseCategory: text("license_category").notNull(), // TRADE, ENTERTAINMENT, HEALTH, etc.
   applicationForm: text("application_form"), // FORM.1, FORM.5 etc.
@@ -562,6 +573,7 @@ export const checklistRequirements = pgTable("checklist_requirements", {
   documentName: text("document_name").notNull(),
   responsibleEntity: text("responsible_entity"),
   requirementNote: text("requirement_note"),
+  isRequired: boolean("is_required").default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -796,6 +808,25 @@ export const insertStallSchema = createInsertSchema(stalls).omit({ stallId: true
 export const insertComplaintSchema = createInsertSchema(complaints).omit({ complaintId: true, createdAt: true });
 export const insertEnforcementCaseSchema = createInsertSchema(enforcementCases).omit({ caseId: true, createdAt: true });
 export const insertNoticeSchema = createInsertSchema(notices).omit({ noticeId: true, createdAt: true });
+
+// ================================
+// FIELD POLICIES (RBAC)
+// ================================
+export const fieldPolicies = pgTable("field_policies", {
+  policyId: varchar("policy_id").primaryKey().default(sql`gen_random_uuid()`),
+  councilId: varchar("council_id").notNull(),
+  entity: text("entity").notNull(), // citizen, business, etc.
+  field: text("field").notNull(),
+  public: text("public").notNull().default("full"), // full, masked, partial, none
+  officer: text("officer").notNull().default("full"),
+  manager: text("manager").notNull().default("full"),
+  admin: text("admin").notNull().default("full"),
+  breakGlass: text("break_glass").notNull().default("full"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertFieldPolicySchema = createInsertSchema(fieldPolicies).omit({ policyId: true, updatedAt: true });
+
 export const insertAuditLogSchema = createInsertSchema(auditLogs).omit({ auditId: true, createdAt: true });
 export const insertAssetSchema = createInsertSchema(assets).omit({ assetId: true, createdAt: true });
 export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders).omit({ orderId: true, createdAt: true });
@@ -901,6 +932,11 @@ export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
 
 export type Asset = typeof assets.$inferSelect;
 export type InsertAsset = z.infer<typeof insertAssetSchema>;
+
+export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
+export type InsertPurchaseOrder = z.infer<typeof insertPurchaseOrderSchema>;
+export type PurchaseOrderLine = typeof purchaseOrderLines.$inferSelect;
+export type InsertPurchaseOrderLine = z.infer<typeof insertPurchaseOrderLineSchema>;
 
 export type LicenseType = typeof licenseTypes.$inferSelect;
 export type InsertLicenseType = z.infer<typeof insertLicenseTypeSchema>;

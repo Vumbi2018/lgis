@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from "express";
+import { isAuthenticated, requireRole } from "./middleware";
 import { createServer, type Server } from "http";
 import path from "path";
 import fs from "fs";
@@ -24,6 +25,7 @@ import {
 } from "@shared/schema";
 import { sendEmail, getStatusChangeEmailContent } from "./email";
 import { addUserManagementRoutes } from "./user_management_routes";
+import { registerFieldPolicyRoutes } from "./field_policy_routes";
 
 async function logAudit(
   councilId: string,
@@ -62,40 +64,153 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   // Document Uploads
+  app.get("/api/login", (_req, res) => {
+    res.status(200).json({
+      message: "Server Connection Successful! Please use the LGIS Mobile App to log in.",
+      ip: _req.ip
+    });
+  });
+
+  app.get("/api/health", (_req, res) => {
+    res.status(200).json({ status: "ok", message: "LGIS Server Online" });
+  });
+
   app.post("/api/v1/uploads", upload.single("file"), async (req, res) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded" });
+        return res.status(400).send("No file uploaded.");
       }
-
-      // Metadata from body
-      const { councilId, ownerType, ownerId, type } = req.body;
-
-      if (!councilId || !ownerType || !ownerId) {
-        return res.status(400).json({ error: "Missing metadata" });
-      }
-
-      const docData = {
-        councilId,
-        ownerType,
-        ownerId,
-        type: type || "other",
+      const fileData = {
+        councilId: "ncdc-council-id", // TODO: Extract from auth context
+        entityType: "request", // Default
+        entityId: "temp-id",
+        documentType: "supporting_doc",
         fileName: req.file.originalname,
         filePath: req.file.path,
         mimeType: req.file.mimetype,
         fileSize: req.file.size,
-        verified: false,
+        status: "pending",
+        uploadedBy: "system_user" // TODO: Extract from auth context
       };
-
-      const parsed = insertDocumentSchema.parse(docData);
-      const document = await storage.createDocument(parsed);
-
-      res.status(201).json(document);
-    } catch (error: any) {
-      console.error("Upload error:", error);
-      res.status(500).json({ error: "Failed to upload file", details: error.message });
+      // For now just return the file info, actual DB storage for documents is handled in specific endpoints
+      res.json(fileData);
+    } catch (err) {
+      console.error("Upload error:", err);
+      res.status(500).send("Upload failed");
     }
   });
+
+  // Get Service Requests (RBAC: Admin/Staff see all, Citizens see own)
+  app.get("/api/v1/service-requests", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const isAdminOrStaff = ["admin", "manager", "officer", "inspector"].includes(user.role);
+      const requests = await storage.getServiceRequests();
+
+      if (isAdminOrStaff) {
+        res.json(requests);
+      } else {
+        // Filter for citizens
+        const myRequests = requests.filter(r => r.requesterId === user.userId || r.submittedBy === user.userId);
+        res.json(myRequests);
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch service requests" });
+    }
+  });
+
+  // Get Businesses for GIS (Public read-only access, enhanced for authenticated users)
+  app.get("/api/v1/businesses", async (req, res) => {
+    try {
+      const user = req.user as any;
+      const isAuthenticated = !!user;
+      const isAdminOrStaff = isAuthenticated && ["admin", "manager", "officer", "inspector", "accountant", "sysadmin"].includes(user?.role || '');
+
+      console.log(`[API] GET /businesses - Auth: ${isAuthenticated}, Role: ${user?.role || 'none'}, IsStaff: ${isAdminOrStaff}`);
+
+      let businesses;
+      try {
+        businesses = await storage.getBusinesses();
+      } catch (storageError: any) {
+        console.error("[API] STORAGE ERROR in /businesses:", storageError);
+        return res.status(500).json({ error: "Storage Error", details: storageError.message });
+      }
+
+      if (!Array.isArray(businesses)) {
+        console.error("[API] Critical: Businesses is not an array:", businesses);
+        return res.status(500).json({ error: "Invalid Data Format from Storage" });
+      }
+
+      // Filter based on authentication
+      if (isAuthenticated && !isAdminOrStaff) {
+        // Authenticated non-staff users see only their own businesses
+        businesses = businesses.filter((b: any) => b.ownerUserId === user.userId);
+      }
+      // Public users and staff see all businesses (public sees limited fields, handled by client)
+
+      console.log(`[API] Returning ${businesses.length} businesses`);
+      res.json(businesses);
+    } catch (error: any) {
+      console.error("[API] GET /businesses Critical Error:", error);
+      res.status(500).json({ error: "Failed to fetch businesses", details: error.message });
+    }
+  });
+
+  // Get Single Business by ID (Public read-only access)
+  app.get("/api/v1/businesses/:id", async (req, res) => {
+    try {
+      const businessId = req.params.id;
+      console.log(`[API] GET /businesses/${businessId}`);
+
+      const business = await storage.getBusinessById(businessId);
+
+      if (!business) {
+        return res.status(404).json({ error: "Business not found" });
+      }
+
+      res.json(business);
+    } catch (error: any) {
+      console.error(`[API] GET /businesses/:id Error:`, error);
+      res.status(500).json({ error: "Failed to fetch business", details: error.message });
+    }
+  });
+
+  // Update Business by ID
+  app.patch("/api/v1/businesses/:id", isAuthenticated, async (req, res) => {
+    try {
+      const businessId = req.params.id;
+      const user = req.user as any;
+
+      console.log(`[API] PATCH /businesses/${businessId} by user ${user?.email}`);
+
+      const business = await storage.getBusinessById(businessId);
+
+      if (!business) {
+        return res.status(404).json({ error: "Business not found" });
+      }
+
+      // Authorization: Only owner or admin/staff can edit
+      const isAdminOrStaff = ["admin", "manager", "officer", "sysadmin"].includes(user?.role || '');
+      const isOwner = business.ownerUserId === user.userId;
+
+      if (!isAdminOrStaff && !isOwner) {
+        return res.status(403).json({ error: "Not authorized to edit this business" });
+      }
+
+      const updated = await storage.updateBusiness(businessId, req.body);
+
+      if (updated) {
+        await logAudit(business.councilId, user.userId, "update", "business", businessId, business, updated);
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      console.error(`[API] PATCH /businesses/:id Error:`, error);
+      res.status(500).json({ error: "Failed to update business", details: error.message });
+    }
+  });
+
+
 
   // Get Documents for Request
   app.get("/api/v1/requests/:id/documents", async (req, res) => {
@@ -121,8 +236,8 @@ export async function registerRoutes(
 
 
 
-  // Review Document
-  app.patch("/api/v1/documents/:id/review", async (req, res) => {
+  // Review Document (RBAC: Officer/Manager/Admin only)
+  app.patch("/api/v1/documents/:id/review", requireRole(["officer", "manager", "admin"]), async (req, res) => {
     try {
       const { status, rejectionReason } = req.body;
       const documentId = req.params.id;
@@ -230,8 +345,8 @@ export async function registerRoutes(
     }
   });
 
-  // Delete Document
-  app.delete("/api/v1/documents/:id", async (req, res) => {
+  // Delete Document (RBAC: Admin only)
+  app.delete("/api/v1/documents/:id", requireRole(["admin"]), async (req, res) => {
     try {
       const documentId = req.params.id;
       console.log(`[API] Received DELETE request for document: ${documentId}`);
@@ -271,6 +386,9 @@ export async function registerRoutes(
 
   // Set up authentication routes and session middleware
   setupAuth(app);
+
+  // Register Field Policy Routes
+  registerFieldPolicyRoutes(app);
 
   // Business Registration Route
   app.post("/api/v1/businesses/register", upload.array("documents"), async (req, res) => {
@@ -653,11 +771,14 @@ export async function registerRoutes(
   // Legacy endpoint - returns new schema format for updated frontend
   app.get("/api/citizens", async (req, res) => {
     try {
+      console.log("[API] GET /citizens - Start");
       const councilId = req.query.organizationId as string || req.query.councilId as string;
       const citizens = await storage.getCitizens(councilId);
-      res.json(citizens);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch citizens" });
+      console.log(`[API] Returning ${citizens?.length || 0} citizens`);
+      res.json(citizens || []);
+    } catch (error: any) {
+      console.error("[API] GET /citizens Error:", error);
+      res.status(500).json({ error: "Failed to fetch citizens", details: error.message });
     }
   });
 
@@ -952,13 +1073,26 @@ export async function registerRoutes(
   // ================================
   // SERVICE REQUESTS (replaces license applications)
   // ================================
-  app.get("/api/v1/requests", async (req, res) => {
+  app.get("/api/v1/requests", isAuthenticated, async (req, res) => {
     try {
       const councilId = (req.query.councilId as string) || (req.headers["x-council-id"] as string);
-      console.log(`[API] GET /requests - CouncilID: ${councilId}`);
-      const data = await storage.getServiceRequests(councilId);
-      res.json(data);
+      const user = req.user as any;
+      const isAdminOrStaff = ["admin", "manager", "officer", "inspector", "accountant"].includes(user.role);
+
+      console.log(`[API] GET /requests - CouncilID: ${councilId}, User: ${user.email} (${user.role})`);
+
+      if (isAdminOrStaff) {
+        const data = await storage.getServiceRequests(councilId);
+        res.json(data);
+      } else {
+        // Citizens only see their own requests
+        const myRequests = await storage.getServiceRequestsByRequester(user.userId);
+        // Filter by Council ID if provided (optional, but good for consistency)
+        const filtered = councilId ? myRequests.filter(r => r.councilId === councilId) : myRequests;
+        res.json(filtered);
+      }
     } catch (error) {
+      console.error("Failed to fetch requests:", error);
       res.status(500).json({ error: "Failed to fetch service requests" });
     }
   });
@@ -982,18 +1116,21 @@ export async function registerRoutes(
     }
   });
 
-  app.post("/api/v1/requests", async (req, res) => {
+  app.post("/api/v1/requests", isAuthenticated, async (req, res) => {
     try {
       const data = insertServiceRequestSchema.parse(req.body);
+      // Ensure the user is creating a request for themselves unless they are staff/admin
+      // This is implicit if we use req.user.userId as requesterId, but the schema might allow passing it.
+      // For now, at least ensure they are logged in.
       const request = await storage.createServiceRequest(data);
-      await logAudit(data.councilId, undefined, "create", "service_request", request.requestId, null, request);
+      await logAudit(data.councilId, (req.user as any)?.userId, "create", "service_request", request.requestId, null, request);
       res.status(201).json(request);
     } catch (error) {
       res.status(400).json({ error: "Invalid service request data" });
     }
   });
 
-  app.patch("/api/v1/requests/:requestId/status", async (req, res) => {
+  app.patch("/api/v1/requests/:requestId/status", isAuthenticated, async (req, res) => {
     try {
       const { status, preprocessingData } = req.body;
 
@@ -1147,32 +1284,49 @@ export async function registerRoutes(
   // ================================
   // INSPECTIONS
   // ================================
-  app.get("/api/v1/inspections", async (req, res) => {
+  app.get("/api/v1/inspections", isAuthenticated, async (req, res) => {
     try {
       const councilId = req.headers["x-council-id"] as string || req.query.councilId as string;
-      const data = await storage.getInspections(councilId);
-      res.json(data);
+      const user = req.user as any;
+      const isAdminOrStaff = ["admin", "manager", "officer", "inspector"].includes(user.role);
+
+      if (isAdminOrStaff) {
+        const data = await storage.getInspections(councilId);
+        res.json(data);
+      } else {
+        // Citizens should generally not see arbitrary inspections unless linked to their requests.
+        // For now, return empty or implement similar logic to requests if needed.
+        // Assuming citizens don't need to see inspection list directly, or only their own.
+        // Let's return empty list for safety or filter by their property/request if possible.
+        // Currently storage.getInspections returns ALL.
+        // Safe default: return empty for citizens to prevent data leak, until specific requirement.
+        res.json([]);
+      }
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch inspections" });
     }
   });
+
   app.get("/api/v1/ping", (req, res) => {
     res.json({ message: "pong", timestamp: new Date().toISOString(), version: "v2" });
   });
 
-  app.post("/api/v1/inspections", async (req, res) => {
+  app.post("/api/v1/inspections", isAuthenticated, async (req, res) => {
     try {
       console.log("Inspection POST payload:", req.body);
+      // Ensure only staff can create inspections
+      const user = req.user as any;
+      if (!["admin", "manager", "officer", "inspector"].includes(user.role)) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+
       const data = insertInspectionSchema.parse(req.body);
       const inspection = await storage.createInspection(data);
       await logAudit(data.councilId, undefined, "create", "inspection", inspection.inspectionId, null, inspection);
       res.status(201).json(inspection);
     } catch (error: any) {
+      // ... existing error handling ...
       console.error("Inspection Creation Error:", error);
-      const fs = await import("fs");
-      const logMsg = `\n--- ${new Date().toISOString()} ---\nPayload: ${JSON.stringify(req.body)}\nError: ${error.message}\nStack: ${error.stack}\nDetails: ${JSON.stringify(error.errors || {}, null, 2)}\n`;
-      fs.appendFileSync("debug_inspections.log", logMsg);
-
       if (error.name === 'ZodError') {
         return res.status(400).json({ error: "Invalid inspection data", details: error.errors });
       }
@@ -1180,15 +1334,13 @@ export async function registerRoutes(
     }
   });
 
-  // ================================
-  // LICENCES (Issuance)
-  // ================================
+  // ... (Licences header) ...
+
   // ================================
   // PAYMENTS & VERIFICATION
   // ================================
 
-
-  app.post("/api/v1/payments", async (req, res) => {
+  app.post("/api/v1/payments", isAuthenticated, async (req, res) => {
     console.log("Incoming Payment Request:", JSON.stringify(req.body, null, 2));
     try {
       const paymentData = insertPaymentSchema.parse(req.body);
@@ -1196,6 +1348,7 @@ export async function registerRoutes(
 
       // External Verification for Card/Mobile
       if (["credit_card", "debit_card", "mobile_money"].includes(paymentData.method)) {
+
         let result;
         const details = paymentData.paymentDetails as any;
 
@@ -1259,16 +1412,27 @@ export async function registerRoutes(
   // ================================
   // LICENCES (Issuance)
   // ================================
-  app.get("/api/v1/payments", async (req, res) => {
+  app.get("/api/v1/payments", isAuthenticated, async (req, res) => {
     try {
       const councilId = req.headers["x-council-id"] as string || req.query.councilId as string;
-      const payments = await storage.getPayments(councilId);
-      res.json(payments);
+      const user = req.user as any;
+      const isAdminOrStaff = ["admin", "manager", "officer", "inspector"].includes(user.role);
+
+      if (isAdminOrStaff) {
+        const payments = await storage.getPayments(councilId);
+        res.json(payments);
+      } else {
+        // Citizens should generally not see arbitrary payments lists.
+        // Filter by payer/requester if possible, but payments table lacks requesterId directly usually (it links to requestRef).
+        // For now, return empty or implement specific lookup.
+        // Safety first:
+        res.json([]);
+      }
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch payments" });
     }
   });
-  app.post("/api/v1/licences/issue", async (req, res) => {
+  app.post("/api/v1/licences/issue", isAuthenticated, async (req, res) => {
     try {
       const { requestId, councilId, issueDate, expiryDate } = req.body;
       console.log(`[Issuance] Request received for RequestID: ${requestId}, Council: ${councilId}`);
@@ -1369,11 +1533,17 @@ export async function registerRoutes(
         fileSize: pdfBuffer.length,
         status: "approved",
         verified: true,
-        verifiedAt: new Date(),
-        metadata: { licenceNo: licence.licenceNo, signed: true }
-      } as any);
+      });
 
-      await storage.updateServiceRequestStatus(requestId, "completed");
+      // Update request status
+      await storage.updateServiceRequestStatus(requestId, "issued", {
+        licenceId: licence.licenceId,
+        issuedAt: new Date().toISOString()
+      }, {
+        issuedAt: new Date(),
+        completedAt: new Date()
+      });
+
       logAudit(councilId, (req.user as any)?.userId, "create", "licence", licence.licenceId, null, licence).catch(console.error);
 
       // Email Notification...
@@ -1396,6 +1566,107 @@ export async function registerRoutes(
     } catch (error: any) {
       console.error("Issue License Error:", error);
       res.status(500).json({ error: "Failed to issue license", details: error.message });
+    }
+  });
+
+  app.get("/api/v1/stats", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const isAdminOrStaff = ["admin", "manager", "officer", "inspector"].includes(user.role);
+
+      if (!isAdminOrStaff) {
+        return res.status(403).json({ error: "Unauthorized access to dashboard stats" });
+      }
+
+      const councilId = user.councilId || req.headers["x-council-id"] as string || "ncdc_council_id";
+      const stats = await storage.getDashboardStats(councilId);
+
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+      res.status(500).json({ error: "Failed to fetch dashboard stats" });
+    }
+  });
+
+  // Payments Endpoint for Finance Page
+  app.get("/api/v1/payments", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const isAdminOrStaff = ["admin", "manager", "officer", "accountant"].includes(user.role);
+
+      if (!isAdminOrStaff) {
+        return res.status(403).json({ error: "Unauthorized access to payments" });
+      }
+
+      const councilId = user.councilId || req.headers["x-council-id"] as string || "ncdc_council_id";
+      const payments = await storage.getPayments(councilId);
+
+      res.json(payments);
+    } catch (error) {
+      console.error("Error fetching payments:", error);
+      res.status(500).json({ error: "Failed to fetch payments" });
+    }
+  });
+
+  app.post("/api/v1/payments/manual", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const isAdminOrStaff = ["admin", "manager", "officer", "accountant"].includes(user.role);
+
+      if (!isAdminOrStaff) {
+        return res.status(403).json({ error: "Unauthorized to record payments" });
+      }
+
+      const councilId = user.councilId || req.headers["x-council-id"] as string || "ncdc_council_id";
+      const { amount, method, payer, reference, description } = req.body;
+
+      if (!amount || !method) {
+        return res.status(400).json({ error: "Amount and method are required" });
+      }
+
+      const payment = await storage.createPayment({
+        councilId,
+        accountId: user.userId, // Recorded by this user
+        paymentRef: reference || `MAN-${Date.now()}`,
+        amount: String(amount),
+        currency: "PGK",
+        method,
+        status: "completed", // Manual payments are usually confirmed immediately
+        paidAt: new Date(),
+        paymentDetails: {
+          payer: payer || "Walk-in Customer",
+          description: description || "Manual Payment",
+          recordedBy: user.email
+        }
+      });
+
+      // Log audit
+      logAudit(councilId, user.userId, "create", "payment", payment.paymentId, { amount, method }).catch(console.error);
+
+      res.status(201).json(payment);
+    } catch (error: any) {
+      console.error("Error recording payment:", error);
+      res.status(500).json({ error: "Failed to record payment" });
+    }
+  });
+
+  // Invoices Endpoint for Finance Page
+  app.get("/api/v1/invoices", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user as any;
+      const isAdminOrStaff = ["admin", "manager", "officer", "accountant"].includes(user.role);
+
+      if (!isAdminOrStaff) {
+        return res.status(403).json({ error: "Unauthorized access to invoices" });
+      }
+
+      const councilId = user.councilId || req.headers["x-council-id"] as string || "ncdc_council_id";
+      const invoices = await storage.getInvoices(councilId);
+
+      res.json(invoices);
+    } catch (error) {
+      console.error("Error fetching invoices:", error);
+      res.status(500).json({ error: "Failed to fetch invoices" });
     }
   });
 
@@ -1563,12 +1834,29 @@ export async function registerRoutes(
     }
   });
 
-  app.get("/api/v1/licences", async (req, res) => {
+  app.get("/api/v1/licences", isAuthenticated, async (req, res) => {
     try {
       const councilId = req.headers["x-council-id"] as string || req.query.councilId as string;
-      const data = await storage.getLicences(councilId);
-      res.json(data);
+      const user = req.user as any;
+      const isAdminOrStaff = ["admin", "manager", "officer", "inspector"].includes(user.role);
+
+      const allLicences = await storage.getLicences(councilId);
+
+      if (isAdminOrStaff) {
+        res.json(allLicences);
+      } else {
+        // Filter for citizens: Verify ownership via Request -> User or Business -> User
+        // This requires 'getLicences' to probably fetch relations or we do it here.
+        // For prototype speed: we will start by ONLY showing licences linked to requests made by this user.
+        // TODO: Enhance Storage to do this efficiently (e.g. getLicencesByUser)
+        const userRequests = await storage.getServiceRequestsByRequester(user.userId);
+        const userRequestIds = userRequests.map(r => r.requestId);
+
+        const myLicences = allLicences.filter((l: any) => userRequestIds.includes(l.requestId));
+        res.json(myLicences);
+      }
     } catch (error) {
+      console.error("Failed to fetch licences:", error);
       res.status(500).json({ error: "Failed to fetch licences" });
     }
   });
@@ -1716,25 +2004,31 @@ export async function registerRoutes(
       // Block submission if an application for the same business + licenseType already exists in the current year
       const existingRequests = await storage.getServiceRequestsByRequester(businessId);
       const currentYear = new Date().getFullYear();
+      console.log(`[Apply] Checking duplicates for Business ${businessId}, Type ${licenseTypeId}, Year ${currentYear}. Found ${existingRequests.length} existing requests.`);
 
       const duplicate = existingRequests.find(r => {
-        const rLicenseTypeId = (r.formData as any)?.licenseTypeId;
-        const rYear = r.submittedAt ? new Date(r.submittedAt).getFullYear() : (r.createdAt ? new Date(r.createdAt).getFullYear() : null);
+        const data = r.formData as any;
+        const rType = data?.licenseTypeId;
 
-        return rLicenseTypeId === licenseTypeId &&
-          rYear === currentYear &&
-          r.status !== 'draft' &&
-          r.status !== 'rejected'; // Allow re-application if previous one was rejected? 
-        // Actually user said "CANNOT SUBMIT MORE THAN ONE... IN THE SAME PERIOD". 
-        // Usually rejection means you have to wait for next period or appeal. 
-        // I will include rejected in the "duplicate" count to be strict, or maybe just block active ones.
-        // Let's block active ones (submitted, processing, approved, completed).
+        // Robust Date Parsing
+        const rDate = r.submittedAt ? new Date(r.submittedAt) : (r.createdAt ? new Date(r.createdAt) : new Date());
+        const rYear = rDate.getFullYear();
+
+        const isSameType = String(rType) === String(licenseTypeId);
+        const isSameYear = rYear === currentYear;
+        const isRelevantStatus = !['rejected', 'draft', 'cancelled', 'withdrawn'].includes(r.status);
+
+        if (isSameType && isSameYear && isRelevantStatus) {
+          console.log(`[Apply] Duplicate Match Found: ${r.requestId} (${r.status})`);
+          return true;
+        }
+        return false;
       });
 
-      if (duplicate && !['rejected'].includes(duplicate.status)) {
+      if (duplicate) {
         return res.status(400).json({
           error: "Duplicate Application",
-          message: `This company already has an active ${licensingService.name} application for the ${currentYear} period (REF: ${duplicate.requestRef || duplicate.requestId.substring(0, 8)}).`
+          message: `This company already has an active ${licensingService.name} application for the ${currentYear} period (REF: ${duplicate.requestRef || duplicate.requestId.substring(0, 8)}). Status: ${duplicate.status}`
         });
       }
 
@@ -1977,30 +2271,8 @@ export async function registerRoutes(
   // ================================
   // DASHBOARD STATS
   // ================================
-  app.get("/api/dashboard/stats", async (req, res) => {
-    try {
-      const councilId = req.query.organizationId as string || req.headers["x-council-id"] as string;
+  // Legacy dashboard route removed
 
-      const [citizensData, businessesData, propertiesData, complaintsData] = await Promise.all([
-        storage.getCitizens(councilId),
-        storage.getBusinesses(councilId),
-        storage.getProperties(councilId),
-        storage.getComplaints(councilId)
-      ]);
-
-      res.json({
-        citizens: citizensData.length,
-        businesses: businessesData.length,
-        properties: propertiesData.length,
-        complaints: complaintsData.length,
-        licences: 0,
-        inspections: 0,
-        revenue: 0
-      });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch dashboard stats" });
-    }
-  });
 
   // ================================
   // USER MANAGEMENT
@@ -2016,10 +2288,10 @@ export async function registerRoutes(
   // ================================
   app.get("/api/v1/tenant/config", async (req, res) => {
     try {
-      const councilId = req.headers["x-council-id"] as string || req.query.councilId as string;
-      if (!councilId) {
-        return res.status(400).json({ error: "councilId is required" });
-      }
+      // Default to NCDC if no councilId provided (e.g. on first load)
+      const councilId = req.headers["x-council-id"] as string ||
+        req.query.councilId as string ||
+        "3c4d4a9f-92a7-4dd2-82fb-ceff90c57094";
 
       const config = await storage.getTenantConfig(councilId);
 
@@ -2031,10 +2303,10 @@ export async function registerRoutes(
           councilName: "National Capital District Commission",
           shortName: "NCDC",
           logoUrl: "/logo.png",
-          primaryColor: "#1e40af",
-          secondaryColor: "#7c3aed",
-          accentColor: "#f59e0b",
-          primaryForeground: "52 100% 50%", // NCDC Yellow
+          primaryColor: "#0F0F0F",
+          secondaryColor: "#F4C400",
+          accentColor: "#F4C400",
+          primaryForeground: "#F4C400", // NCDC Yellow
           positiveColor: "#10b981",
           warningColor: "#f59e0b",
           negativeColor: "#ef4444",
@@ -2042,8 +2314,8 @@ export async function registerRoutes(
           buttonRadius: 4,
           cardRadius: 8,
           inputRadius: 4,
-          sidebarBackground: "#F0F1F2",
-          headerBackground: "#FCFCFC",
+          sidebarBackground: "#0F0F0F",
+          headerBackground: "#F4C400",
           fontFamily: "Inter",
           locationLevels: ["Country", "Province", "District", "Ward", "Section", "Lot"],
           locale: "en-PG",
@@ -2091,6 +2363,131 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating tenant config:", error);
       res.status(500).json({ error: "Failed to update tenant configuration" });
+    }
+  });
+
+  // ================================
+  // LICENSE TYPES & REQUIREMENTS
+  // ================================
+  app.get("/api/v1/license-types", async (req, res) => {
+    try {
+      const data = await storage.getLicenseTypes();
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch license types" });
+    }
+  });
+
+  app.post("/api/v1/license-types", async (req, res) => {
+    try {
+      const data = insertLicenseTypeSchema.parse(req.body);
+      const lt = await storage.createLicenseType(data);
+      res.status(201).json(lt);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid license type data" });
+    }
+  });
+
+  app.patch("/api/v1/license-types/:id", async (req, res) => {
+    try {
+      const updates = insertLicenseTypeSchema.partial().parse(req.body);
+      const lt = await storage.updateLicenseType(req.params.id, updates);
+      if (!lt) return res.status(404).json({ error: "License type not found" });
+      res.json(lt);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid updates" });
+    }
+  });
+
+  app.delete("/api/v1/license-types/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteLicenseType(req.params.id);
+      if (!success) return res.status(404).json({ error: "License type not found" });
+      res.sendStatus(204);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete license type" });
+    }
+  });
+
+  // Checklist Requirements
+  app.get("/api/v1/license-types/:id/checklist", async (req, res) => {
+    try {
+      const data = await storage.getChecklistRequirements(req.params.id);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch checklist" });
+    }
+  });
+
+  app.post("/api/v1/license-types/:id/checklist", async (req, res) => {
+    try {
+      const data = insertChecklistRequirementSchema.parse({ ...req.body, licenseTypeId: req.params.id });
+      const req_obj = await storage.createChecklistRequirement(data);
+      res.status(201).json(req_obj);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid checklist data" });
+    }
+  });
+
+  app.patch("/api/v1/checklist-requirements/:id", async (req, res) => {
+    try {
+      const updates = insertChecklistRequirementSchema.partial().parse(req.body);
+      const req_obj = await storage.updateChecklistRequirement(req.params.id, updates);
+      if (!req_obj) return res.status(404).json({ error: "Requirement not found" });
+      res.json(req_obj);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid updates" });
+    }
+  });
+
+  app.delete("/api/v1/checklist-requirements/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteChecklistRequirement(req.params.id);
+      if (!success) return res.status(404).json({ error: "Requirement not found" });
+      res.sendStatus(204);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete requirement" });
+    }
+  });
+
+  // Special Requirements
+  app.get("/api/v1/license-types/:id/special", async (req, res) => {
+    try {
+      const data = await storage.getSpecialRequirements(req.params.id);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch special requirements" });
+    }
+  });
+
+  app.post("/api/v1/license-types/:id/special", async (req, res) => {
+    try {
+      const data = insertSpecialRequirementSchema.parse({ ...req.body, licenseTypeId: req.params.id });
+      const req_obj = await storage.createSpecialRequirement(data);
+      res.status(201).json(req_obj);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid special requirement data" });
+    }
+  });
+
+  app.patch("/api/v1/special-requirements/:id", async (req, res) => {
+    try {
+      const updates = insertSpecialRequirementSchema.partial().parse(req.body);
+      const req_obj = await storage.updateSpecialRequirement(req.params.id, updates);
+      if (!req_obj) return res.status(404).json({ error: "Requirement not found" });
+      res.json(req_obj);
+    } catch (error) {
+      res.status(400).json({ error: "Invalid updates" });
+    }
+  });
+
+  app.delete("/api/v1/special-requirements/:id", async (req, res) => {
+    try {
+      const success = await storage.deleteSpecialRequirement(req.params.id);
+      if (!success) return res.status(404).json({ error: "Requirement not found" });
+      res.sendStatus(204);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to delete requirement" });
     }
   });
 

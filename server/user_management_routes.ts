@@ -6,10 +6,11 @@ import { db } from "./db";
 import { users, roles, permissions, rolePermissions, userRoles } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
+import { isAuthenticated, requireRole } from "./middleware";
 
 export function addUserManagementRoutes(app: Express, storage: any) {
-    // Get all users
-    app.get("/api/v1/users", async (req: Request, res: Response) => {
+    // Get all users (Admin/Manager/Officer only - maybe just Admin/Manager)
+    app.get("/api/v1/users", isAuthenticated, requireRole(["admin", "manager"]), async (req: Request, res: Response) => {
         try {
             const councilId = req.headers["x-council-id"] as string || req.query.councilId as string;
             const userList = await db
@@ -38,10 +39,12 @@ export function addUserManagementRoutes(app: Express, storage: any) {
         }
     });
 
-    // Get all roles
-    app.get("/api/v1/roles", async (req: Request, res: Response) => {
+    // Get all roles - SECURED
+    app.get("/api/v1/roles", isAuthenticated, async (req: Request, res: Response) => {
         try {
             const councilId = req.headers["x-council-id"] as string || req.query.councilId as string;
+            // Allow authenticated users to see roles (needed for UI mostly), but maybe restrict if strict.
+            // For now, isAuthenticated is better than public.
             const rolesList = await db
                 .select({
                     roleId: roles.roleId,
@@ -71,8 +74,8 @@ export function addUserManagementRoutes(app: Express, storage: any) {
         }
     });
 
-    // Create new role
-    app.post("/api/v1/roles", async (req: Request, res: Response) => {
+    // Create new role (Admin only)
+    app.post("/api/v1/roles", requireRole(["admin"]), async (req: Request, res: Response) => {
         try {
             const { name, scope } = req.body;
             const councilId = req.headers["x-council-id"] as string;
@@ -90,8 +93,8 @@ export function addUserManagementRoutes(app: Express, storage: any) {
         }
     });
 
-    // Update role
-    app.patch("/api/v1/roles/:id", async (req: Request, res: Response) => {
+    // Update role (Admin only)
+    app.patch("/api/v1/roles/:id", requireRole(["admin"]), async (req: Request, res: Response) => {
         try {
             const roleId = req.params.id;
             const { name, scope } = req.body;
@@ -109,8 +112,8 @@ export function addUserManagementRoutes(app: Express, storage: any) {
         }
     });
 
-    // Delete role
-    app.delete("/api/v1/roles/:id", async (req: Request, res: Response) => {
+    // Delete role (Admin only)
+    app.delete("/api/v1/roles/:id", requireRole(["admin"]), async (req: Request, res: Response) => {
         try {
             const roleId = req.params.id;
 
@@ -130,8 +133,8 @@ export function addUserManagementRoutes(app: Express, storage: any) {
         }
     });
 
-    // Get all permissions
-    app.get("/api/v1/permissions", async (req: Request, res: Response) => {
+    // Get all permissions - SECURED (Admin/Manager)
+    app.get("/api/v1/permissions", isAuthenticated, requireRole(["admin", "manager"]), async (req: Request, res: Response) => {
         try {
             const permissionsList = await db
                 .select()
@@ -144,8 +147,8 @@ export function addUserManagementRoutes(app: Express, storage: any) {
         }
     });
 
-    // Get permissions for a specific role
-    app.get("/api/v1/roles/:id/permissions", async (req: Request, res: Response) => {
+    // Get permissions for a specific role - SECURED (Admin/Manager)
+    app.get("/api/v1/roles/:id/permissions", isAuthenticated, requireRole(["admin", "manager"]), async (req: Request, res: Response) => {
         try {
             const roleId = req.params.id;
             const rolePerms = await db
@@ -164,8 +167,8 @@ export function addUserManagementRoutes(app: Express, storage: any) {
         }
     });
 
-    // Create new user
-    app.post("/api/v1/users", async (req: Request, res: Response) => {
+    // Create new user (Admin/Manager only)
+    app.post("/api/v1/users", requireRole(["admin", "manager"]), async (req: Request, res: Response) => {
         try {
             const { fullName, email, phone, roleId, nationalId, password } = req.body;
             const councilId = req.headers["x-council-id"] as string;
@@ -203,8 +206,8 @@ export function addUserManagementRoutes(app: Express, storage: any) {
         }
     });
 
-    // Update user status
-    app.patch("/api/v1/users/:id/status", async (req: Request, res: Response) => {
+    // Update user status - SECURED (Admin/Manager)
+    app.patch("/api/v1/users/:id/status", isAuthenticated, requireRole(["admin", "manager"]), async (req: Request, res: Response) => {
         try {
             const userId = req.params.id;
             const { status } = req.body;
@@ -221,8 +224,8 @@ export function addUserManagementRoutes(app: Express, storage: any) {
         }
     });
 
-    // Update user details (General Update)
-    app.patch("/api/v1/users/:id", async (req: Request, res: Response) => {
+    // Update user details (General Update) - SECURED (Admin/Manager)
+    app.patch("/api/v1/users/:id", isAuthenticated, requireRole(["admin", "manager"]), async (req: Request, res: Response) => {
         try {
             const userId = req.params.id;
             const { fullName, email, phone, roleId, nationalId } = req.body;
@@ -252,8 +255,8 @@ export function addUserManagementRoutes(app: Express, storage: any) {
         }
     });
 
-    // Reset user password
-    app.post("/api/v1/users/:id/password", async (req: Request, res: Response) => {
+    // Reset user password - SECURED (Admin only)
+    app.post("/api/v1/users/:id/password", isAuthenticated, requireRole(["admin"]), async (req: Request, res: Response) => {
         try {
             const userId = req.params.id;
             const { password } = req.body;
@@ -272,8 +275,8 @@ export function addUserManagementRoutes(app: Express, storage: any) {
         }
     });
 
-    // Delete user
-    app.delete("/api/v1/users/:id", async (req: Request, res: Response) => {
+    // Delete user (Admin only)
+    app.delete("/api/v1/users/:id", requireRole(["admin"]), async (req: Request, res: Response) => {
         try {
             const userId = req.params.id;
 
@@ -294,8 +297,8 @@ export function addUserManagementRoutes(app: Express, storage: any) {
         }
     });
 
-    // Update permissions for a role
-    app.post("/api/v1/roles/:id/permissions", async (req: Request, res: Response) => {
+    // Update permissions for a role - SECURED (Admin only)
+    app.post("/api/v1/roles/:id/permissions", isAuthenticated, requireRole(["admin"]), async (req: Request, res: Response) => {
         try {
             const roleId = req.params.id;
             const { permissions: newPermissions } = req.body;

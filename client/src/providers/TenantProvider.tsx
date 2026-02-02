@@ -81,20 +81,20 @@ interface TenantContextValue {
 }
 
 const getStoredCouncilId = () => {
-    if (typeof window === 'undefined') return '';
+    if (typeof window === 'undefined') return '3c4d4a9f-92a7-4dd2-82fb-ceff90c57094';
     const stored = localStorage.getItem('currentOrganization');
     try {
-        return stored ? JSON.parse(stored)?.councilId : '';
+        return stored ? JSON.parse(stored)?.councilId : '3c4d4a9f-92a7-4dd2-82fb-ceff90c57094';
     } catch (e) {
-        return '';
+        return '3c4d4a9f-92a7-4dd2-82fb-ceff90c57094';
     }
 };
 
 const defaultConfig: TenantConfig = {
     configId: '',
     councilId: getStoredCouncilId(),
-    councilName: 'Local Government',
-    shortName: 'LG',
+    councilName: 'National Capital District Commission',
+    shortName: 'NCDC',
     primaryColor: '#1e40af',
     secondaryColor: '#7c3aed',
     accentColor: '#f59e0b',
@@ -141,7 +141,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         queryKey: ['/api/v1/tenant/config', storedCouncilId],
         queryFn: async () => {
             try {
-                return await fetchAPI<TenantConfig>('/v1/tenant/config');
+                const fetched = await fetchAPI<TenantConfig>('/v1/tenant/config');
+                return fetched || { ...defaultConfig, councilId: storedCouncilId };
             } catch (err) {
                 console.warn('Failed to fetch tenant config, using defaults:', err);
                 return {
@@ -237,6 +238,15 @@ export function useTenant() {
 // Helper functions
 function applyTheme(config: TenantConfig) {
     const root = document.documentElement;
+
+    // AGGRESSIVE BRANDING INJECTION (Locking these in)
+    root.style.setProperty('--sidebar-background', '#0F0F0F');
+    root.style.setProperty('--sidebar-foreground', '#FFFFFF');
+    root.style.setProperty('--header-background', '#F4C400');
+    root.style.setProperty('--header-foreground', '#000000');
+    root.style.setProperty('--color-brand-primary', '#F4C400');
+    root.style.setProperty('--primary', '48 100% 48%');
+    root.style.setProperty('--primary-foreground', '240 6% 6%');
 
     const applyScale = (baseColor: string, prefix: string) => {
         const { h, s, l } = hexToHsl(baseColor);
@@ -336,14 +346,20 @@ function applyTheme(config: TenantConfig) {
     }
 
     // Manual overrides always take final priority
-    if (config.primaryForeground) pForeground = hexToHslComponents(config.primaryForeground);
-    else if (config.foregroundDefaultColor && !isYellowTheme) pForeground = hexToHslComponents(config.foregroundDefaultColor);
+    if (config.primaryForeground && config.primaryForeground.startsWith('#')) {
+        pForeground = hexToHslComponents(config.primaryForeground);
+    } else if (config.primaryForeground) {
+        // Assume it's already an HSL component string
+        pForeground = config.primaryForeground;
+    } else if (config.foregroundDefaultColor && !isYellowTheme && config.foregroundDefaultColor.startsWith('#')) {
+        pForeground = hexToHslComponents(config.foregroundDefaultColor);
+    }
 
     root.style.setProperty('--primary-foreground', pForeground);
     root.style.setProperty('--destructive-foreground', '0 0% 100%');
 
     // ============================================================================
-    // ENFORCE GOLD, BLACK & WHITE THEME (Always Applied)
+    // ENFORCE GOLD, BLACK & WHITE THEME (Always Applied Last to Override Defaults)
     // ============================================================================
 
     // Force gold/black/white color scheme

@@ -30,7 +30,16 @@ interface OrganizationContextType {
 const OrganizationContext = createContext<OrganizationContextType | undefined>(undefined);
 
 export function OrganizationProvider({ children }: { children: React.ReactNode }) {
-  const [currentOrganization, setCurrentOrganization] = useState<Council | null>(null);
+  const [currentOrganization, setCurrentOrganization] = useState<Council | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const stored = localStorage.getItem('currentOrganization');
+    if (!stored) return null;
+    try {
+      return JSON.parse(stored);
+    } catch {
+      return null;
+    }
+  });
 
   const { data, isLoading } = useQuery<Council[]>({
     queryKey: ["/api/councils"],
@@ -45,12 +54,18 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
       if (stored) {
         try {
           const parsed = JSON.parse(stored);
-          setCurrentOrganization(parsed);
+          if (parsed && parsed.councilId) {
+            setCurrentOrganization(parsed);
+          } else {
+            throw new Error("Invalid stored org");
+          }
         } catch {
-          setCurrentOrganization(organizations[0]);
+          const ncdc = organizations.find(o => o.councilId === '3c4d4a9f-92a7-4dd2-82fb-ceff90c57094') || organizations[0];
+          setCurrentOrganization(ncdc);
         }
       } else {
-        setCurrentOrganization(organizations[0]);
+        const ncdc = organizations.find(o => o.councilId === '3c4d4a9f-92a7-4dd2-82fb-ceff90c57094') || organizations[0];
+        setCurrentOrganization(ncdc);
       }
     }
   }, [organizations, currentOrganization]);

@@ -14,7 +14,8 @@ import { ServiceCatalogueTab } from "@/components/admin/ServiceCatalogueTab";
 import { LicenseFeeManagement } from "@/components/admin/LicenseFeeManagement";
 import { WorkflowManagement } from "@/components/admin/WorkflowManagement";
 import { PermissionManagement } from "@/components/admin/PermissionManagement";
-import { Save, Upload, Plus, Database, ArrowRight, Shield, Lock, AlertTriangle, DollarSign } from "lucide-react";
+import { LicenseRequirementsTab } from "@/components/admin/LicenseRequirementsTab";
+import { Save, Upload, Plus, Database, ArrowRight, Shield, Lock, AlertTriangle, DollarSign, FileCheck } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
@@ -54,6 +55,7 @@ export default function ConfigurationPage() {
             { value: 'services', label: 'Service Catalogue' },
             { value: 'workflows', label: 'Workflows & Rules' },
             { value: 'notifications', label: 'Notifications' },
+            { value: 'license-requirements', label: 'Licence Requirements', icon: FileCheck },
             { value: 'license-fees', label: 'Licence Fees', icon: DollarSign },
             { value: 'users', label: 'User Management' },
             { value: 'permissions', label: 'Permissions', icon: Shield },
@@ -124,6 +126,11 @@ export default function ConfigurationPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Licence Requirements Tab */}
+        <TabsContent value="license-requirements">
+          <LicenseRequirementsTab />
         </TabsContent>
 
         {/* Licence Fees Tab */}

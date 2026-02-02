@@ -17,7 +17,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { MOCK_INVOICES } from "@/lib/mock-data";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useMemo } from "react";
+import { ManualPaymentModal } from "@/components/finance/ManualPaymentModal";
+import { useState, useMemo } from "react";
 
 const COLORS = [
   "var(--accent-primary-default)",
@@ -29,17 +30,31 @@ const COLORS = [
 
 export default function RevenuePage() {
   // Fetch real payments data
-  const { data: payments = [], isLoading } = useQuery({
+  const { data: payments = [], isLoading: loadingPayments } = useQuery({
     queryKey: ["/api/v1/payments"],
     queryFn: async () => {
-      const councilId = localStorage.getItem('councilId');
-      const res = await apiRequest("GET", `/api/v1/payments?councilId=${councilId}`);
+      // Use endpoint that handles councilId on backend
+      const res = await apiRequest("GET", `/api/v1/payments`);
       return res.json();
     }
   });
 
+  // Fetch real invoices data
+  const { data: invoices = [], isLoading: loadingInvoices } = useQuery({
+    queryKey: ["/api/v1/invoices"],
+    queryFn: async () => {
+      const res = await apiRequest("GET", "/api/v1/invoices");
+      return res.json();
+    }
+  });
+
+  const isLoading = loadingPayments || loadingInvoices;
+
   // Calculate analytics from real data
   const analytics = useMemo(() => {
+    // Debug logging
+    console.log("RevenuePage Payment Data:", payments);
+
     if (!payments.length) return {
       totalCollected: 0,
       outstanding: 0,
@@ -51,11 +66,18 @@ export default function RevenuePage() {
     };
 
     const now = new Date();
-    const completedPayments = payments.filter((p: any) => p.status === 'completed');
+    // Allow both 'completed' and 'paid' statuses
+    const completedPayments = payments.filter((p: any) =>
+      ['completed', 'paid'].includes(p.status?.toLowerCase())
+    );
+    console.log("RevenuePage Completed Payments:", completedPayments);
+
     const totalCollected = completedPayments.reduce((sum: number, p: any) => sum + parseFloat(p.amount || 0), 0);
 
     // Calculate outstanding (mock for now - would need invoices table integration)
     const outstanding = totalCollected * 0.3;
+
+
 
     // Calculate 30-day average
     const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
@@ -83,14 +105,35 @@ export default function RevenuePage() {
       });
     }
 
-    // Revenue by source (mock categorization - would need service request integration)
-    const revenueBySource = [
-      { name: "Licensing Fees", value: totalCollected * 0.4 },
-      { name: "Property Rates", value: totalCollected * 0.35 },
-      { name: "Market Fees", value: totalCollected * 0.15 },
-      { name: "Permits", value: totalCollected * 0.08 },
-      { name: "Other", value: totalCollected * 0.02 }
-    ];
+    // Dynamic Revenue by source
+    const sourceMap: Record<string, number> = {};
+    const MAX_CATEGORIES = 5;
+
+    completedPayments.forEach((p: any) => {
+      const amount = parseFloat(p.amount || 0);
+      let category = "Other";
+      const ref = (p.paymentRef || "").toUpperCase();
+      const desc = (p.paymentDetails?.description || "").toLowerCase();
+
+      if (ref.startsWith("LIC") || ref.startsWith("TRD") || desc.includes("license")) category = "Licensing Fees";
+      else if (ref.startsWith("PROP") || ref.startsWith("RAT") || desc.includes("rate")) category = "Property Rates";
+      else if (ref.startsWith("MKT") || desc.includes("market")) category = "Market Fees";
+      else if (ref.startsWith("PER") || ref.startsWith("BLD") || desc.includes("permit")) category = "Permits";
+      else if (ref.startsWith("MAN")) category = "Counter Receipts";
+      // Fallback: If ref is a UUID (likely a request ID), assume it's a Licensing/Application Fee
+      else if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(ref)) category = "Licensing Fees";
+
+      sourceMap[category] = (sourceMap[category] || 0) + amount;
+    });
+
+    const revenueBySource = Object.entries(sourceMap)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value); // Sort by highest value
+
+    // If no data, provide a placeholder so chart doesn't look broken (or empty)
+    if (revenueBySource.length === 0) {
+      revenueBySource.push({ name: "No Data", value: 0 });
+    }
 
     // Format recent transactions
     const recentTransactions = completedPayments
@@ -116,6 +159,16 @@ export default function RevenuePage() {
     };
   }, [payments]);
 
+  /* State for manual payment modal */
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+
+  /* Helper to format large currency values */
+  const formatCurrency = (value: number) => {
+    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+    return value.toLocaleString(); // Fallback for small numbers
+  };
+
   const TRANSACTIONS = analytics.recentTransactions;
   const REVENUE_BY_SOURCE = analytics.revenueBySource;
   const MONTHLY_REVENUE = analytics.monthlyRevenue;
@@ -127,6 +180,10 @@ export default function RevenuePage() {
           <p className="flex items-center mt-2 text-sm opacity-90">Financial overview, billing, and automated collections for the commission.</p>
         </div>
         <div className="flex gap-2">
+          <Button onClick={() => setShowPaymentModal(true)} className="font-bold border-none shadow-md hover:bg-positive/90 bg-positive text-white mr-2">
+            <DollarSign className="mr-2 h-4 w-4" />
+            Record Payment
+          </Button>
           <Button variant="outline" className="border-2 font-bold hover:bg-black/90 bg-black text-[#F4C400] border-[#F4C400]">
             <Calendar className="mr-2 h-4 w-4 text-[#F4C400]" />
             Fiscal Year 2026
@@ -155,7 +212,7 @@ export default function RevenuePage() {
                   <DollarSign className="h-4 w-4 text-[#F4C400]" />
                 </div>
                 <div className="text-2xl font-black text-[#F4C400]">
-                  PGK {isLoading ? '...' : (analytics.totalCollected / 1000000).toFixed(1)}M
+                  PGK {isLoading ? '...' : formatCurrency(analytics.totalCollected)}
                 </div>
                 <p className="text-xs text-black font-medium flex items-center mt-1">
                   <TrendingUp className="h-3 w-3 mr-1 text-[#F4C400]" /> Real-time data
@@ -169,7 +226,7 @@ export default function RevenuePage() {
                   <FileText className="h-4 w-4 text-[#F4C400]" />
                 </div>
                 <div className="text-2xl font-black text-[#F4C400]">
-                  PGK {isLoading ? '...' : (analytics.outstanding / 1000000).toFixed(1)}M
+                  PGK {isLoading ? '...' : formatCurrency(analytics.outstanding)}
                 </div>
                 <p className="text-xs text-black font-medium mt-1">Est. arrears</p>
               </CardContent>
@@ -181,7 +238,7 @@ export default function RevenuePage() {
                   <Activity className="h-4 w-4 text-[#F4C400]" />
                 </div>
                 <div className="text-2xl font-black text-[#F4C400]">
-                  PGK {isLoading ? '...' : (analytics.dailyAverage / 1000).toFixed(0)}K
+                  PGK {isLoading ? '...' : formatCurrency(analytics.dailyAverage)}
                 </div>
                 <p className="text-xs text-black font-medium mt-1">Based on last 30 days</p>
               </CardContent>
@@ -291,22 +348,30 @@ export default function RevenuePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {MOCK_INVOICES.map((inv) => (
-                    <TableRow key={inv.id}>
-                      <TableCell className="font-medium">{inv.id}</TableCell>
-                      <TableCell>{inv.recipient}</TableCell>
-                      <TableCell>{inv.description}</TableCell>
-                      <TableCell>{inv.date}</TableCell>
-                      <TableCell className="font-bold">{inv.amount}</TableCell>
-                      <TableCell>
-                        <Badge variant={inv.status === "Paid" ? "default" : "destructive"} className={inv.status === "Paid" ? "bg-positive text-white" : "bg-negative text-white"}>{inv.status}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="sm"><Send className="h-4 w-4 mr-1" /> Resend</Button>
-                        <Button variant="ghost" size="sm"><Receipt className="h-4 w-4 mr-1" /> View</Button>
+                  {invoices.length > 0 ? (
+                    invoices.map((inv: any) => (
+                      <TableRow key={inv.id}>
+                        <TableCell className="font-medium">{inv.id}</TableCell>
+                        <TableCell>{inv.recipient}</TableCell>
+                        <TableCell>{inv.description}</TableCell>
+                        <TableCell>{inv.date}</TableCell>
+                        <TableCell className="font-bold">{inv.amount}</TableCell>
+                        <TableCell>
+                          <Badge variant={inv.status === "Paid" ? "default" : "destructive"} className={inv.status === "Paid" ? "bg-positive text-white" : "bg-negative text-white"}>{inv.status}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="sm"><Send className="h-4 w-4 mr-1" /> Resend</Button>
+                          <Button variant="ghost" size="sm"><Receipt className="h-4 w-4 mr-1" /> View</Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center h-24 text-muted-foreground">
+                        No invoices found.
                       </TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -368,6 +433,8 @@ export default function RevenuePage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <ManualPaymentModal open={showPaymentModal} onOpenChange={setShowPaymentModal} />
     </MainLayout>
   );
 }

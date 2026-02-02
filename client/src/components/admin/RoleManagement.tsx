@@ -38,7 +38,7 @@ interface Role {
     permissionCount: number;
 }
 
-export function RoleManagement() {
+export function RoleManagement({ searchQuery = "", scopeFilter = "all" }: { searchQuery?: string, scopeFilter?: string }) {
     const { toast } = useToast();
     const queryClient = useQueryClient();
     const [, setLocation] = useLocation();
@@ -49,6 +49,12 @@ export function RoleManagement() {
     const { data: roles = [], isLoading } = useQuery<Role[]>({
         queryKey: ["/api/v1/roles"],
     });
+
+    const filteredRoles = roles.filter(role =>
+        (role.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            role.scope.toLowerCase().includes(searchQuery.toLowerCase())) &&
+        (scopeFilter === "all" || role.scope.toLowerCase() === scopeFilter.toLowerCase())
+    );
 
     const createMutation = useMutation({
         mutationFn: async (data: any) => {
@@ -136,7 +142,7 @@ export function RoleManagement() {
             </CardHeader>
             <CardContent className="pt-6">
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {roles.map((role) => (
+                    {filteredRoles.map((role) => (
                         <Card key={role.roleId} className="hover:shadow-md transition-shadow border-outline-dimmer bg-background-higher/10">
                             <CardContent className="p-6">
                                 <div className="flex items-start justify-between mb-4">
@@ -196,7 +202,7 @@ export function RoleManagement() {
                     ))}
                 </div>
 
-                {roles.length === 0 && (
+                {filteredRoles.length === 0 && (
                     <div className="text-center p-12 bg-background-higher/20 rounded-xl border border-dashed border-outline-dimmer">
                         <Shield className="h-12 w-12 mx-auto mb-4 text-foreground-dimmiser opacity-20" />
                         <p className="text-foreground-dimmer font-medium">No roles defined for this system.</p>

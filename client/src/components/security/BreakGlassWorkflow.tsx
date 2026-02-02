@@ -30,7 +30,9 @@ import {
     FileText,
     Timer,
     Eye,
-    Lock
+    Lock,
+    Search,
+    Filter
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -55,6 +57,8 @@ interface BreakGlassRequest {
 export function BreakGlassWorkflow() {
     const [requestDialogOpen, setRequestDialogOpen] = useState(false);
     const [selectedRequest, setSelectedRequest] = useState<BreakGlassRequest | null>(null);
+    const [searchTerm, setSearchTerm] = useState("");
+    const [statusFilter, setStatusFilter] = useState("all");
 
     // Sample requests
     const requests: BreakGlassRequest[] = [
@@ -216,10 +220,44 @@ export function BreakGlassWorkflow() {
                         <FileText className="h-5 w-5" />
                         Break-Glass Request History
                     </CardTitle>
+                    <div className="flex flex-col md:flex-row gap-4 mt-4 lg:mt-0">
+                        <div className="relative flex-1 group">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-black transition-colors" />
+                            <Input
+                                placeholder="Search by incident, name, or justification..."
+                                className="pl-10 h-10 border-outline-dimmer bg-background-higher"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        <div className="w-[180px]">
+                            <Select value={statusFilter} onValueChange={setStatusFilter}>
+                                <SelectTrigger className="h-10 border-outline-dimmer bg-background-higher">
+                                    <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <SelectValue placeholder="All Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Status</SelectItem>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="approved">Approved</SelectItem>
+                                    <SelectItem value="active">Active</SelectItem>
+                                    <SelectItem value="denied">Denied</SelectItem>
+                                    <SelectItem value="expired">Expired</SelectItem>
+                                    <SelectItem value="revoked">Revoked</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
-                        {requests.map(request => (
+                        {requests.filter(r => {
+                            const matchesSearch = r.incidentRef.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                r.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                r.justification.toLowerCase().includes(searchTerm.toLowerCase());
+                            const matchesStatus = statusFilter === "all" || r.status === statusFilter;
+                            return matchesSearch && matchesStatus;
+                        }).map(request => (
                             <Card key={request.requestId} className="hover:shadow-md transition-shadow">
                                 <CardContent className="p-6">
                                     <div className="flex items-start justify-between mb-4">

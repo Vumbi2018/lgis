@@ -37,11 +37,25 @@ export default function LoginPage() {
         description: `Logged in as ${user.fullName}`,
       });
 
-      setLocation("/dashboard");
+      // Redirect based on platform
+      // Redirect based on platform and role
+      const isMobile = import.meta.env.VITE_IS_MOBILE || /Android|iPhone/i.test(navigator.userAgent);
+
+      if (isMobile) {
+        // Send everyone to the main mobile dashboard for access to all modules
+        setLocation("/mobile/dashboard");
+      } else {
+        // Role-based redirection for desktop
+        if (user.role === "user") {
+          setLocation("/portal");
+        } else {
+          setLocation("/dashboard");
+        }
+      }
     } catch (error) {
       toast({
         title: "Login Failed",
-        description: "Invalid credentials. Please try again.",
+        description: error instanceof Error ? error.message : "Invalid credentials",
         variant: "destructive",
       });
     } finally {

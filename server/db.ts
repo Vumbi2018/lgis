@@ -13,3 +13,14 @@ if (!process.env.DATABASE_URL) {
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 pool.on('error', (err) => console.error('Unexpected error on idle client', err));
 export const db = drizzle(pool, { schema });
+
+// Connection check
+(async () => {
+  try {
+    const res = await pool.query('SELECT NOW()');
+    console.log(`[DB] Connection successful. Database time: ${res.rows[0].now}`);
+  } catch (err) {
+    console.error('[DB] Connection failed on startup!');
+    console.error(err);
+  }
+})();

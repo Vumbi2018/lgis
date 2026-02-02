@@ -8,6 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { FieldPolicyMatrix } from "@/components/security/FieldPolicyMatrix";
 import { BreakGlassWorkflow } from "@/components/security/BreakGlassWorkflow";
+import { LicenseRequirementsTab } from "@/components/admin/LicenseRequirementsTab";
+import { RoleManagement } from "@/components/admin/RoleManagement";
+import { AuditLogsViewer } from "@/components/admin/AuditLogsViewer";
 import {
     Shield,
     Key,
@@ -26,7 +29,8 @@ import {
     Upload,
     Sparkles,
     Zap,
-    Activity
+    Activity,
+    ClipboardList
 } from "lucide-react";
 
 export default function ConfigurationPage() {
@@ -87,6 +91,12 @@ export default function ConfigurationPage() {
                         >
                             Audit Logs
                         </TabsTrigger>
+                        <TabsTrigger
+                            value="licensing"
+                            className="h-12 px-6 border-2 border-foreground/10 data-[state=active]:bg-[#0F0F0F] data-[state=active]:text-[#F4C400] data-[state=active]:border-[#0F0F0F] bg-[#FEF7E0] text-foreground font-bold uppercase tracking-widest transition-all rounded-lg shadow-sm hover:translate-y-[-1px] hover:shadow-md"
+                        >
+                            License Requirements
+                        </TabsTrigger>
                     </TabsList>
 
                     {/* PERMISSIONS TAB */}
@@ -96,7 +106,7 @@ export default function ConfigurationPage() {
 
                     {/* ROLES TAB */}
                     <TabsContent value="roles">
-                        <RolesManager />
+                        <RolesManager searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
                     </TabsContent>
 
                     {/* FIELD POLICIES TAB */}
@@ -112,6 +122,11 @@ export default function ConfigurationPage() {
                     {/* AUDIT TAB */}
                     <TabsContent value="audit">
                         <AuditLogsViewer />
+                    </TabsContent>
+
+                    {/* LICENSING TAB */}
+                    <TabsContent value="licensing">
+                        <LicenseRequirementsTab />
                     </TabsContent>
                 </Tabs>
             </div>
@@ -247,20 +262,43 @@ function PermissionsManager({ searchQuery, setSearchQuery }: { searchQuery: stri
 // ================================
 // ROLES MANAGER COMPONENT
 // ================================
-function RolesManager() {
+function RolesManager({ searchQuery, setSearchQuery }: { searchQuery: string, setSearchQuery: (q: string) => void }) {
+    const [scopeFilter, setScopeFilter] = useState("all");
+
     return (
-        <Card className="shadow-lg">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-purple-500" />
-                    Role Management
-                </CardTitle>
-                <CardDescription>Configure roles and assign permissions</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <p className="text-muted-foreground">Role management interface coming soon...</p>
-            </CardContent>
-        </Card>
+        <div className="space-y-6">
+            <Card className="shadow-lg border-none bg-background-highest">
+                <CardHeader>
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="relative flex-1 group">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-black transition-colors" />
+                            <Input
+                                placeholder="Filter roles and scopes..."
+                                className="pl-10 h-11 border-outline-dimmer bg-background-higher"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        <div className="w-full md:w-[200px]">
+                            <Select value={scopeFilter} onValueChange={setScopeFilter}>
+                                <SelectTrigger className="h-11 border-outline-dimmer bg-background-higher">
+                                    <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
+                                    <SelectValue placeholder="All Scopes" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Scopes</SelectItem>
+                                    <SelectItem value="council">Council</SelectItem>
+                                    <SelectItem value="unit">Unit</SelectItem>
+                                    <SelectItem value="ward">Ward</SelectItem>
+                                    <SelectItem value="location">Location</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                </CardHeader>
+            </Card>
+            <RoleManagement searchQuery={searchQuery} scopeFilter={scopeFilter} />
+        </div>
     );
 }
 
@@ -278,22 +316,4 @@ function BreakGlassManager() {
     return <BreakGlassWorkflow />;
 }
 
-// ================================
-// AUDIT LOGS VIEWER
-// ================================
-function AuditLogsViewer() {
-    return (
-        <Card className="shadow-lg">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Eye className="h-5 w-5 text-slate-500" />
-                    Security Audit Logs
-                </CardTitle>
-                <CardDescription>Comprehensive activity tracking and compliance reporting</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <p className="text-muted-foreground">Audit log viewer coming soon...</p>
-            </CardContent>
-        </Card>
-    );
-}
+// AUDIT LOGS VIEWER handled by separate component

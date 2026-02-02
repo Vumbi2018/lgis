@@ -1,5 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import cors from "cors";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
@@ -12,6 +13,10 @@ declare module "http" {
   }
 }
 
+app.use(cors({
+  origin: true,
+  credentials: true
+}));
 app.use(
   express.json({
     verify: (req, _res, buf) => {
@@ -33,6 +38,10 @@ export function log(message: string, source = "express") {
 
   console.log(`${formattedTime} [${source}] ${message}`);
 }
+
+app.get("/api/health", (_req, res) => {
+  res.json({ status: "ok", message: "Server is reachable from mobile!" });
+});
 
 app.use((req, res, next) => {
   const start = Date.now();

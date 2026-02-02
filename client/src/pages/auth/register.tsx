@@ -20,7 +20,8 @@ export default function RegisterPage() {
         email: "",
         password: "",
         confirmPassword: "",
-        phone: ""
+        phone: "",
+        _honey: "" // anti-spam honeypot
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,7 +56,8 @@ export default function RegisterPage() {
                 email: formData.email,
                 password: formData.password,
                 phone: formData.phone,
-                councilId: currentOrganization.councilId
+                councilId: currentOrganization.councilId,
+                _honey: formData._honey
             });
 
             toast({
@@ -165,6 +167,19 @@ export default function RegisterPage() {
                                 onChange={handleChange}
                                 required
                                 className="h-11 border-gray-300 focus:border-yellow-500 focus:ring-yellow-500"
+                            />
+                        </div>
+
+                        {/* Honeypot Field (Hidden) */}
+                        <div className="hidden" aria-hidden="true">
+                            <Label htmlFor="_honey">Don't fill this out</Label>
+                            <Input
+                                id="_honey"
+                                type="text"
+                                value={formData._honey}
+                                onChange={handleChange}
+                                tabIndex={-1}
+                                autoComplete="off"
                             />
                         </div>
 
