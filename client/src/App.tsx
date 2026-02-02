@@ -48,6 +48,7 @@ import WorkflowDetailsPage from "@/pages/workflows/workflow-details";
 import PlanningPage from "@/pages/planning/index";
 import AssetsPage from "@/pages/assets/index";
 import ProcurementPage from "@/pages/procurement/index";
+import AboutPage from "@/pages/about/index";
 import InspectionsList from "@/mobile/pages/InspectionsList";
 import InspectionPerform from "@/mobile/pages/InspectionPerform";
 import ApprovalQueue from "@/mobile/pages/ApprovalQueue";
@@ -110,6 +111,7 @@ function Router() {
       <Route path="/workflows/:id" component={WorkflowDetailsPage} />
       <Route path="/assets" component={AssetsPage} />
       <Route path="/procurement" component={ProcurementPage} />
+      <Route path="/about" component={AboutPage} />
 
       {/* Mobile Routes */}
       <Route path="/mobile/dashboard" component={MobileDashboard} />

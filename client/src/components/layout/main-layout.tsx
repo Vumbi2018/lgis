@@ -1,6 +1,7 @@
 import { Sidebar } from "./sidebar";
 import { Header } from "./header";
 import { useTenant } from "@/providers/TenantProvider";
+import { getDisplayVersion } from "@shared/version";
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -31,7 +32,7 @@ export function MainLayout({ children }: MainLayoutProps) {
               © {currentYear} {config.councilName || config.shortName}. All rights reserved.
             </p>
             <p className="text-foreground-dimmest text-xs">
-              Powered by LGIS v1.0
+              Powered by LGIS {getDisplayVersion()}
             </p>
           </div>
         </footer>
