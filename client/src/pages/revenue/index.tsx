@@ -18,6 +18,7 @@ import { MOCK_INVOICES } from "@/lib/mock-data";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { ManualPaymentModal } from "@/components/finance/ManualPaymentModal";
+import { OnlinePaymentModal } from "@/components/finance/OnlinePaymentModal";
 import { useState, useMemo } from "react";
 
 const COLORS = [
@@ -161,6 +162,7 @@ export default function RevenuePage() {
 
   /* State for manual payment modal */
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showOnlinePaymentModal, setShowOnlinePaymentModal] = useState(false);
 
   /* Helper to format large currency values */
   const formatCurrency = (value: number) => {
@@ -183,6 +185,10 @@ export default function RevenuePage() {
           <Button onClick={() => setShowPaymentModal(true)} className="font-bold border-none shadow-md hover:bg-positive/90 bg-positive text-white mr-2">
             <DollarSign className="mr-2 h-4 w-4" />
             Record Payment
+          </Button>
+          <Button onClick={() => setShowOnlinePaymentModal(true)} className="font-bold border-none shadow-md hover:bg-slate-700 bg-slate-800 text-white mr-2">
+            <CreditCard className="mr-2 h-4 w-4" />
+            Pay Online
           </Button>
           <Button variant="outline" className="border-2 font-bold hover:bg-black/90 bg-black text-[#F4C400] border-[#F4C400]">
             <Calendar className="mr-2 h-4 w-4 text-[#F4C400]" />
@@ -435,6 +441,7 @@ export default function RevenuePage() {
       </Tabs>
 
       <ManualPaymentModal open={showPaymentModal} onOpenChange={setShowPaymentModal} />
+      <OnlinePaymentModal open={showOnlinePaymentModal} onOpenChange={setShowOnlinePaymentModal} />
     </MainLayout>
   );
 }

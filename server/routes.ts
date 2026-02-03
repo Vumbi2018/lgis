@@ -2516,6 +2516,58 @@ export async function registerRoutes(
   });
 
   // ================================
+  // PAYMENTS (ONLINE)
+  // ================================
+  app.post("/api/v1/payments/online", async (req, res) => {
+    try {
+      const { amount, method, paymentDetails, accountId } = req.body;
+      const amountVal = parseFloat(amount);
+
+      if (isNaN(amountVal) || amountVal <= 0) {
+        return res.status(400).json({ error: "Invalid amount" });
+      }
+
+      let result;
+      if (method === 'credit_card') {
+        result = await PaymentGateway.verifyCreditCard(amountVal, paymentDetails);
+      } else if (method === 'mobile_money') {
+        result = await PaymentGateway.verifyMobileMoney(amountVal, paymentDetails);
+      } else {
+        return res.status(400).json({ error: "Invalid payment method" });
+      }
+
+      if (!result.success) {
+        return res.status(400).json({ error: result.message });
+      }
+
+      // Success - Record Payment
+      const paymentData = {
+        councilId: req.headers["x-council-id"] as string || "ncdc-council-id",
+        accountId: accountId || "guest-account",
+        paymentRef: result.transactionId || `PAY-${Date.now()}`,
+        amount: amountVal.toString(),
+        currency: "PGK",
+        method: method,
+        provider: method === 'credit_card' ? 'Visa/Mastercard' : (paymentDetails?.provider || 'Mobile Money'),
+        status: "completed",
+        externalReference: result.transactionId,
+        paymentDetails: result.details,
+        paidAt: new Date(),
+      };
+
+      const payment = await storage.createPayment(paymentData);
+
+      // Audit
+      await logAudit(payment.councilId, (req.user as any)?.userId, "create", "payment", payment.paymentId, null, payment);
+
+      res.status(201).json(payment);
+    } catch (error: any) {
+      console.error("Payment processing error:", error);
+      res.status(500).json({ error: "Payment processing failed" });
+    }
+  });
+
+  // ================================
   // PROCUREMENT
   // ================================
   app.get("/api/v1/procurement/orders", async (req, res) => {

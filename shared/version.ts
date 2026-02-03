@@ -14,15 +14,15 @@ export const APP_VERSION = {
     /** Major version number */
     major: 1,
     /** Minor version number */
-    minor: 1,
+    minor: 2,
     /** Patch version number */
-    patch: 2,
+    patch: 0,
     /** Pre-release label (e.g., 'alpha', 'beta', 'rc.1') */
     preRelease: '',
     /** Build metadata (e.g., commit hash) */
     buildMeta: '',
     /** Release date */
-    releaseDate: '2026-02-02',
+    releaseDate: '2026-02-03',
     /** Release name/codename */
     releaseName: 'Business Edition',
 };
